@@ -1,0 +1,70 @@
+        if (el2) el2.classList.add('hint-pulse');
+        // Remove hint after animation completes
+        setTimeout(() => {
+          if (el1) el1.classList.remove('hint-pulse');
+          if (el2) el2.classList.remove('hint-pulse');
+        }, 4000);
+        return;
+      }
+    }
+  }
+}
+
+function selectBubble(id) {
+  // Don't process clicks if we're not on the game screen
+  if (!document.getElementById('game-screen').classList.contains('active')) return;
+
+  // Clear hint timer on any bubble selection
+  if (hintTimeout) {
+    clearTimeout(hintTimeout);
+    hintTimeout = null;
+    // Remove any hint-pulse classes
+    document.querySelectorAll('.hint-pulse').forEach(el => el.classList.remove('hint-pulse'));
+  }
+
+  // Brief cooldown only after a WRONG pair (pacing/punish) — successful
+  // pops no longer block input, so fast players can chain pops.
+  if (state.isAnimating) return;
+
+  // Ignore taps on bubbles that are mid-pop
+  const tapped = state.bubbles.find(b => b.id === id);
+  if (!tapped || tapped.popping) return;
+
+  const idx = state.selectedIds.indexOf(id);
+  if (idx !== -1) {
+    state.selectedIds.splice(idx, 1);
+    return;
+  }
+
+  const maxSel = getMaxSelectable();
+  state.selectedIds.push(id);
+
+  // At 2 selected: always try to process (works for both 2-mode and 3-mode)
+  // At 3 selected: process if in 3-bubble mode
+  if (state.selectedIds.length >= 2) {
+    // In 3-bubble mode, if they have 2 selected, wait a beat to see if they pick a 3rd
+    if (maxSel === 3 && state.selectedIds.length === 2) {
+      // Try 2-bubble combo immediately — if it works, pop them
+      // If not, let them pick a 3rd
+      const combo2 = findPrimeCombo2(state.selectedIds);
+      if (combo2) {
+        processResult(combo2.ids, combo2.result, combo2.label);
+      }
+      // Otherwise wait for 3rd pick or they can deselect
+      return;
+    }
+    if (state.selectedIds.length === 2 && maxSel === 2) {
+      processSelection2();
+    } else if (state.selectedIds.length === 3) {
+      processSelection3();
+    }
+  }
+}
+
+// === 2-bubble combo check ===
+function findPrimeCombo2(ids) {
+  const b1 = state.bubbles.find(b => b.id === ids[0]);
+  const b2 = state.bubbles.find(b => b.id === ids[1]);
+  if (!b1 || !b2) return null;
+  const n1 = b1.num, n2 = b2.num;
+  const sum = n1 + n2;
