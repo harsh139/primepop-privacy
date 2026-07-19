@@ -1,0 +1,4064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>PrimePop</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-gradient-1: #7C22CE;
+    --bg-gradient-2: #3B0764;
+    --bg-gradient-3: #1A0535;
+    --gold: #FFB800;
+    --gold-light: #FFD54F;
+    --glass: rgba(255,255,255,0.08);
+    --glass-border: rgba(255,255,255,0.15);
+    --glass-highlight: rgba(255,255,255,0.25);
+    --text-color: #fff;
+  }
+
+
+  body {
+    font-family: 'Nunito', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    color: var(--text-color);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ========== THEMES ==========
+     Default is Bubble Lagoon; Aurora and Starlight selectable in Settings.
+     --board-bg and --overlay-grad let every panel follow the chosen theme. */
+  body, body[data-theme="lagoon"] {
+    background: linear-gradient(180deg, #38bdf8 0%, #0891b2 45%, #164e63 100%);
+    --board-bg: radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.10) 0%, rgba(0,40,60,0.22) 75%);
+    --overlay-grad: linear-gradient(160deg, rgba(56,189,248,0.55) 0%, rgba(8,145,178,0.78) 40%, rgba(12,74,110,0.94) 100%);
+  }
+  body[data-theme="aurora"] {
+    background: radial-gradient(ellipse at 50% 25%, #7C22CE 0%, #3B0764 55%, #150322 100%);
+    --board-bg: radial-gradient(ellipse at 50% 40%, rgba(124,34,206,0.2) 0%, rgba(0,0,0,0.15) 70%);
+    --overlay-grad: linear-gradient(160deg, rgba(155,77,255,0.6) 0%, rgba(124,34,206,0.8) 40%, rgba(59,7,100,0.9) 100%);
+  }
+  body[data-theme="starlight"] {
+    background: radial-gradient(ellipse at 30% 15%, #312e81 0%, #1e1b4b 45%, #0b0a1f 100%);
+    --board-bg: radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.14) 0%, rgba(0,0,0,0.2) 75%);
+    --overlay-grad: linear-gradient(160deg, rgba(129,140,248,0.5) 0%, rgba(67,56,202,0.75) 40%, rgba(23,20,64,0.94) 100%);
+  }
+
+  /* Ambient background layer (behind all screens, never blocks taps) */
+  #ambience {
+    position: fixed; inset: 0; z-index: -1;
+    pointer-events: none; overflow: hidden;
+  }
+  .amb-glow { position: absolute; border-radius: 50%; filter: blur(45px); }
+  .amb-glow.g1 { width: 55vw; height: 30vh; background: rgba(255,80,180,0.20); top: -8vh; left: -12vw; animation: glowShift 11s ease-in-out infinite alternate; }
+  .amb-glow.g2 { width: 60vw; height: 32vh; background: rgba(80,140,255,0.16); bottom: -8vh; right: -15vw; animation: glowShift 13s ease-in-out infinite alternate-reverse; }
+  .amb-glow.g3 { width: 40vw; height: 24vh; background: rgba(255,190,60,0.12); top: 40%; left: 55%; animation: glowShift 9s ease-in-out infinite alternate; }
+  @keyframes glowShift {
+    0%   { transform: translate(0,0) scale(1); }
+    100% { transform: translate(5vw, 4vh) scale(1.18); }
+  }
+  .amb-ray {
+    position: absolute; top: -30vh; width: 14vw; height: 110vh;
+    background: linear-gradient(180deg, rgba(255,255,255,0.25), transparent 75%);
+    transform: rotate(16deg); filter: blur(14px);
+    animation: rayPulse 7s ease-in-out infinite alternate;
+  }
+  @keyframes rayPulse {
+    0%   { opacity: 0.3; }
+    100% { opacity: 0.8; }
+  }
+  .amb-micro {
+    position: absolute; bottom: -3vh; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.5), rgba(255,255,255,0.05) 60%);
+    animation: microRise linear infinite;
+  }
+  @keyframes microRise {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    10%  { opacity: 0.7; }
+    90%  { opacity: 0.4; }
+    100% { transform: translateY(-112vh) translateX(4vw); opacity: 0; }
+  }
+  .amb-star {
+    position: absolute; border-radius: 50%; background: #fff;
+    animation: twinkle 3.5s ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.12; transform: scale(0.8); }
+    50% { opacity: 0.9; transform: scale(1.2); }
+  }
+  .amb-nebula { position: absolute; border-radius: 50%; filter: blur(50px); }
+  .amb-nebula.n1 { width: 55vw; height: 28vh; background: rgba(168,85,247,0.18); top: 8%; right: -14vw; }
+  .amb-nebula.n2 { width: 48vw; height: 25vh; background: rgba(236,72,153,0.13); bottom: 12%; left: -12vw; }
+
+  /* Theme picker in Settings */
+  .theme-row { display: flex; gap: 10px; }
+  .theme-option {
+    flex: 1; text-align: center; cursor: pointer; padding: 8px 6px;
+    border-radius: 14px; border: 2px solid transparent; font-size: 0.8rem;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .theme-option.theme-active {
+    border-color: var(--gold);
+    background: rgba(255,255,255,0.08);
+  }
+  .theme-swatch {
+    height: 52px; border-radius: 10px; margin-bottom: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+
+  /* Custom SVG hearts (replace emoji — consistent on every device) */
+  .ui-heart { width: 1.15em; height: 1.15em; display: inline-block; vertical-align: -0.18em; }
+
+  /* ========== SCREENS ========== */
+  .screen { display: none; flex-direction: column; align-items: center; height: 100vh; padding: 20px; padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+  .screen.active { display: flex; }
+
+  /* ========== TITLE SCREEN ========== */
+  #title-screen { justify-content: center; gap: 30px; text-align: center; }
+  .game-logo {
+    font-size: 3.5rem; font-weight: 900; letter-spacing: -2px;
+    text-shadow: 0 4px 8px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.15);
+    filter: drop-shadow(0 6px 20px rgba(124,34,206,0.5));
+  }
+  .game-logo .prime { color: var(--gold); }
+  .game-logo .pop { color: #ff6b9d; }
+  .game-subtitle { font-size: 1.1rem; opacity: 0.85; margin-top: -20px; }
+
+  .btn {
+    padding: 16px 40px; border: none; border-radius: 50px; font-size: 1.2rem;
+    font-weight: 700; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3);
+    position: relative;
+  }
+  .btn:active { transform: scale(0.95) translateY(2px); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .btn-primary {
+    background: linear-gradient(180deg, #FFD54F 0%, #FFB800 50%, #F59E0B 100%);
+    color: #3B0764;
+    border-top: 1px solid rgba(255,255,255,0.5);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+  }
+  .btn-secondary {
+    background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.08) 100%);
+    color: #fff; backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .btn-small { padding: 10px 24px; font-size: 0.95rem; }
+  .btn-danger {
+    background: linear-gradient(180deg, #ff6b6b 0%, #ee5a24 100%);
+    color: #fff; border-top: 1px solid rgba(255,255,255,0.3);
+  }
+  .title-buttons { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 280px; }
+
+  /* ========== GAME SCREEN ========== */
+  #game-screen { padding: 10px; gap: 8px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(0px, env(safe-area-inset-bottom)); }
+
+  .game-header {
+    width: 100%; max-width: 500px; display: flex; justify-content: space-between;
+    align-items: center; padding: 10px 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+    border-radius: 18px; backdrop-filter: blur(16px); z-index: 10; position: relative;
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .header-item { text-align: center; }
+  .header-label { font-size: 0.7rem; text-transform: uppercase; opacity: 0.7; letter-spacing: 1px; }
+  .header-value { font-size: 1.3rem; font-weight: 800; }
+
+  /* ========== LIVES (HEARTS) DISPLAY ========== */
+  .lives-bar {
+    width: 100%; max-width: 500px; display: flex; justify-content: center;
+    align-items: center; gap: 6px; padding: 4px 0; z-index: 10;
+  }
+  .lives-label {
+    font-size: 0.7rem; text-transform: uppercase; opacity: 0.7;
+    letter-spacing: 1px; margin-right: 4px;
+  }
+  .heart-life {
+    font-size: 1.3rem; transition: all 0.3s ease; display: inline-block;
+  }
+  .heart-life.lost {
+    opacity: 0.15; transform: scale(0.7);
+    filter: grayscale(1);
+  }
+  .heart-life.breaking {
+    animation: heartBreak 0.5s ease forwards;
+  }
+  @keyframes heartBreak {
+    0% { transform: scale(1); opacity: 1; }
+    30% { transform: scale(1.5) rotate(15deg); }
+    100% { transform: scale(0.7); opacity: 0.15; filter: grayscale(1); }
+  }
+
+
+  .target-bar {
+    width: 100%; max-width: 500px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%);
+    border-radius: 14px; padding: 8px 14px; text-align: center; z-index: 10; position: relative;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+  .progress-track {
+    width: 100%; height: 10px; background: rgba(0,0,0,0.3);
+    border-radius: 5px; margin-top: 6px; overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+  }
+  .progress-fill {
+    height: 100%; border-radius: 5px; transition: width 0.5s ease;
+    background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 50%, #F59E0B 100%);
+    box-shadow: 0 0 10px rgba(255,184,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+  }
+
+  /* ========== FLOATING BOARD AREA ========== */
+  .board-container {
+    flex: 1; position: relative; width: 100%; max-width: 500px;
+    overflow: hidden; border-radius: 20px;
+    background: var(--board-bg);
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: inset 0 4px 30px rgba(0,0,0,0.2);
+    transition: height 0.3s ease;
+  }
+  /* Tutorial board follows the theme too (was hardcoded purple) */
+  #tutorial-board { background: var(--board-bg); }
+  .board-container.with-banner {
+    height: calc(100% - 60px);
+  }
+
+  /* ========== 3D BUBBLE SPHERE STYLE ========== */
+  .bubble {
+    position: absolute;
+    left: 0; top: 0;
+    /* Position via transform (GPU-composited) instead of left/top
+       (which forces layout every frame). --bx/--by are set from JS. */
+    transform: translate3d(var(--bx, 0px), var(--by, 0px), 0);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    cursor: pointer;
+    will-change: transform;
+    /* 3D glass sphere: bright specular on top-left, secondary reflection bottom-right, depth underneath */
+    background:
+      radial-gradient(circle at 32% 25%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.5) 10%, transparent 35%),
+      radial-gradient(circle at 68% 75%, rgba(255,255,255,0.2) 0%, transparent 25%),
+      radial-gradient(circle at 50% 45%, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 50%, rgba(0,0,0,0.05) 100%);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    box-shadow:
+      inset 0 -8px 16px rgba(0,0,0,0.12),
+      inset 0 4px 6px rgba(255,255,255,0.35),
+      inset 4px 0 8px rgba(255,255,255,0.05),
+      0 8px 24px rgba(0,0,0,0.25),
+      0 2px 6px rgba(0,0,0,0.15),
+      0 0 2px rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.4), 0 0 8px rgba(255,255,255,0.2);
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+
+  /* Even number bubbles — gold/yellow 3D tint */
+  .bubble.even {
+    background:
+      radial-gradient(circle at 32% 25%, rgba(255,255,255,0.95) 0%, rgba(255,240,180,0.65) 12%, transparent 38%),
+      radial-gradient(circle at 68% 75%, rgba(255,220,100,0.3) 0%, transparent 28%),
+      radial-gradient(circle at 50% 45%, rgba(255,200,50,0.35) 0%, rgba(220,170,20,0.2) 50%, rgba(160,120,10,0.15) 100%);
+    border-color: rgba(255,220,100,0.45);
+    box-shadow:
+      inset 0 -8px 16px rgba(160,120,10,0.2),
+      inset 0 4px 6px rgba(255,255,255,0.35),
+      0 8px 24px rgba(200,160,20,0.3),
+      0 2px 6px rgba(0,0,0,0.15),
+      0 0 2px rgba(255,220,100,0.4);
+  }
+
+  /* Odd number bubbles — pink 3D tint */
+  .bubble.odd {
+    background:
+      radial-gradient(circle at 32% 25%, rgba(255,255,255,0.95) 0%, rgba(255,200,220,0.6) 12%, transparent 38%),
+      radial-gradient(circle at 68% 75%, rgba(255,170,200,0.25) 0%, transparent 28%),
+      radial-gradient(circle at 50% 45%, rgba(255,100,160,0.3) 0%, rgba(220,50,120,0.18) 50%, rgba(150,20,80,0.12) 100%);
+    border-color: rgba(255,170,200,0.4);
+    box-shadow:
+      inset 0 -8px 16px rgba(150,20,80,0.15),
+      inset 0 4px 6px rgba(255,255,255,0.35),
+      0 8px 24px rgba(200,50,100,0.25),
+      0 2px 6px rgba(0,0,0,0.15),
+      0 0 2px rgba(255,170,200,0.4);
+  }
+
+  .bubble.selected {
+    box-shadow:
+      0 0 0 3px var(--gold),
+      0 0 25px rgba(255,184,0,0.5),
+      0 0 50px rgba(255,184,0,0.2),
+      inset 0 -8px 16px rgba(0,0,0,0.12),
+      inset 0 4px 6px rgba(255,255,255,0.35);
+    z-index: 5;
+    transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1.08);
+  }
+
+  .bubble.flash-red {
+    animation: flashRed 0.5s ease;
+  }
+  @keyframes flashRed {
+    0%, 100% { filter: none; }
+    25%, 75% { filter: brightness(0.7) saturate(3) hue-rotate(-40deg); box-shadow: 0 0 25px rgba(255,0,0,0.6); }
+  }
+
+  .bubble.pop-anim {
+    animation: popBubble 0.5s ease forwards;
+    pointer-events: none;
+  }
+  @keyframes popBubble {
+    0% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1); opacity: 1; filter: brightness(1); }
+    15% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1.4); opacity: 1; filter: brightness(1.5); }
+    30% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1.5); opacity: 0.9; filter: brightness(2); }
+    50% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(0.2); opacity: 0.4; filter: brightness(1); }
+    100% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(0); opacity: 0; }
+  }
+
+  /* Pop burst ring that expands outward */
+  .pop-ring {
+    position: fixed;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 184, 0, 0.8);
+    pointer-events: none;
+    z-index: 90;
+    animation: popRingExpand 0.5s ease-out forwards;
+    box-shadow: 0 0 12px rgba(255,184,0,0.4), inset 0 0 8px rgba(255,184,0,0.2);
+  }
+  @keyframes popRingExpand {
+    0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; border-width: 4px; }
+    60% { opacity: 0.6; border-width: 2px; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; border-width: 0.5px; }
+  }
+
+  /* Shiny sparkle dots */
+  .pop-sparkle {
+    position: fixed;
+    width: 5px; height: 5px;
+    background: radial-gradient(circle, #fff 0%, var(--gold-light) 60%, transparent 100%);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 91;
+    box-shadow: 0 0 8px 3px rgba(255,184,0,0.6), 0 0 16px rgba(255,184,0,0.3);
+  }
+
+  /* Save slot cards */
+  .save-slots { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 380px; margin: 10px 0; }
+  .save-slot {
+    background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%);
+    border-radius: 18px; padding: 16px;
+    backdrop-filter: blur(12px); display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .save-slot:active { transform: scale(0.97) translateY(2px); }
+  .save-slot:hover { background: linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%); }
+  .save-slot-info { flex: 1; }
+  .save-slot-name { font-weight: 700; font-size: 1.05rem; }
+  .save-slot-detail { font-size: 0.8rem; opacity: 0.7; margin-top: 4px; }
+  .save-slot-actions { display: flex; gap: 8px; }
+  .slot-btn {
+    padding: 8px 14px; border: none; border-radius: 12px; font-size: 0.8rem;
+    font-weight: 700; cursor: pointer; transition: transform 0.1s;
+  }
+  .slot-btn:active { transform: scale(0.93); }
+  .slot-btn-play { background: linear-gradient(180deg, #FFD54F, #FFB800, #F59E0B); color: #3B0764; border-top: 1px solid rgba(255,255,255,0.4); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+  .slot-btn-del { background: rgba(255,80,80,0.5); color: #fff; }
+  .empty-slot { opacity: 0.5; border: 2px dashed rgba(255,255,255,0.3); justify-content: center; }
+  .all-time-score { font-size: 0.95rem; opacity: 0.8; margin-bottom: 5px; text-align: center; }
+
+  .bubble.appear-anim {
+    animation: appearBubble 0.45s ease forwards;
+  }
+  @keyframes appearBubble {
+    0% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(0); opacity: 0; }
+    60% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1.12); }
+    100% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1); opacity: 1; }
+  }
+
+  .bubble.hint-pulse {
+    animation: hintPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes hintPulse {
+    0%, 100% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1); }
+    50% { transform: translate3d(var(--bx, 0px), var(--by, 0px), 0) scale(1.15); }
+  }
+
+  /* ========== RESULT DISPLAY ========== */
+  .result-display {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 2.5rem; font-weight: 900; pointer-events: none; z-index: 100; opacity: 0;
+  }
+  .result-display.show-prime {
+    animation: showPrime 1s ease forwards;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(255,184,0,0.8), 0 0 60px rgba(255,184,0,0.4), 0 4px 8px rgba(0,0,0,0.4);
+    filter: drop-shadow(0 0 20px rgba(255,184,0,0.5));
+  }
+  .result-display.show-nope {
+    animation: showNope 0.6s ease forwards;
+    color: #ff4444;
+    text-shadow: 0 0 20px rgba(255,0,0,0.6), 0 4px 8px rgba(0,0,0,0.4);
+  }
+  @keyframes showPrime {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+    80% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -80%) scale(0.8); }
+  }
+  @keyframes tutorialEquation {
+    0% { opacity: 0; transform: scale(0.5); }
+    20% { opacity: 1; transform: scale(1.3); }
+    80% { opacity: 1; transform: scale(1); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes showNope {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    30% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* ========== OVERLAYS ========== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,2,25,0.75); display: none;
+    align-items: center; justify-content: center; z-index: 200; backdrop-filter: blur(12px);
+  }
+  .overlay.active { display: flex; }
+  .overlay-card {
+    background: var(--overlay-grad);
+    border-radius: 28px;
+    padding: 40px 30px; text-align: center; max-width: 340px; width: 90%;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(20px);
+  }
+  .overlay-card h2 {
+    font-size: 2rem; margin-bottom: 10px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .overlay-card p { opacity: 0.85; margin-bottom: 24px; line-height: 1.5; }
+  .overlay-card .stars {
+    font-size: 2.5rem; margin-bottom: 10px;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+  }
+  .star-slot {
+    display: inline-block; font-size: 3rem; margin: 0 6px;
+    transition: all 0.5s ease;
+  }
+  .star-slot.empty { opacity: 0.25; transform: scale(0.7); filter: grayscale(1); }
+  .star-slot.filling {
+    animation: starFlyIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes starFlyIn {
+    0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+    50% { transform: scale(1.5) rotate(10deg); opacity: 1; }
+    70% { transform: scale(0.9) rotate(-5deg); opacity: 1; }
+    100% { transform: scale(1.1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 12px rgba(255,200,0,0.8)); }
+  }
+  @keyframes starSparkle {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(255,200,0,0.6)); }
+    50% { filter: drop-shadow(0 0 20px rgba(255,200,0,1)); }
+  }
+  .star-slot.filled {
+    animation: starSparkle 1.5s ease-in-out infinite;
+    transform: scale(1.1);
+  }
+
+  /* ========== PURCHASE SCREEN ========== */
+  #purchase-screen { justify-content: center; gap: 20px; text-align: center; }
+  .purchase-card {
+    background: linear-gradient(160deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 100%);
+    border-radius: 28px; padding: 30px;
+    max-width: 340px; width: 90%; backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .purchase-price { font-size: 2.5rem; font-weight: 900; color: #ffd700; margin: 16px 0; }
+  .purchase-features { text-align: left; margin: 20px 0; line-height: 2; }
+
+  /* ========== SETTINGS SCREEN ========== */
+  #settings-screen { justify-content: flex-start; padding-top: 60px; gap: 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .settings-group {
+    background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%);
+    border-radius: 20px; padding: 20px;
+    width: 100%; max-width: 400px; backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .settings-group h3 { margin-bottom: 14px; font-size: 1.1rem; }
+  .settings-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .toggle {
+    width: 50px; height: 28px; background: rgba(255,255,255,0.2);
+    border-radius: 14px; position: relative; cursor: pointer; transition: background 0.3s;
+  }
+  .toggle.on { background: linear-gradient(180deg, var(--gold-light), var(--gold)); box-shadow: 0 2px 8px rgba(255,184,0,0.4); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+    background: #fff; border-radius: 50%; transition: transform 0.3s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .toggle.on::after { transform: translateX(22px); }
+
+  @keyframes tutorialFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  .tutorial-bubble-float {
+    animation: tutorialFloat 3s ease-in-out infinite;
+  }
+
+  .particle { position: fixed; border-radius: 50%; pointer-events: none; z-index: 150; }
+  .confetti-piece { position: fixed; width: 10px; height: 10px; z-index: 300; pointer-events: none; }
+
+  @media (min-width: 600px) {
+    .game-logo { font-size: 4.5rem; }
+    /* iPad layout fixes — scale up for larger screens */
+    .purchase-card { max-width: 420px; padding: 36px; }
+    .purchase-price { font-size: 3rem; }
+    .overlay-card { max-width: 420px; padding: 36px 32px; }
+    .settings-group { max-width: 480px; }
+    .game-header, .target-bar, .board-container, #gameplay-banner { max-width: 600px; }
+    .btn { padding: 18px 44px; font-size: 1.3rem; }
+    .btn-small { padding: 12px 24px; font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Ambient animated background (theme-driven, behind everything) -->
+<div id="ambience" aria-hidden="true"></div>
+
+<!-- Shared SVG gradient definitions for the custom icons -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="heartGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff6b8a"/>
+      <stop offset="1" stop-color="#e11d48"/>
+    </linearGradient>
+    <radialGradient id="bubbleGrad" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="rgba(255,255,255,0.9)"/>
+      <stop offset="0.35" stop-color="rgba(125,211,252,0.45)"/>
+      <stop offset="1" stop-color="rgba(56,189,248,0.25)"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+<!-- ========== TITLE SCREEN ========== -->
+<div id="title-screen" class="screen active">
+  <div>
+    <div class="game-logo"><span class="prime">Prime</span><span class="pop">Pop</span></div>
+    <p class="game-subtitle">Pop primes. Crush levels. Have fun!</p>
+  </div>
+  <div class="all-time-score" id="all-time-display">All-Time Best: 0</div>
+  <div class="save-slots" id="save-slots-container"></div>
+  <div class="title-buttons">
+    <button class="btn btn-primary" onclick="newGameSlot()">New Game</button>
+    <button class="btn btn-secondary" onclick="showScreen('settings-screen')">Settings</button>
+  </div>
+  <p style="opacity:0.5; font-size:0.8rem; margin-top: 10px;" id="login-status"></p>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <div class="header-item">
+      <div class="header-label">Level</div>
+      <div class="header-value" id="level-display">1</div>
+    </div>
+    <div class="header-item">
+      <div class="header-label">Score</div>
+      <div class="header-value" id="score-display">0</div>
+    </div>
+    <div class="header-item prime-header-btn" onclick="showPrimesList()" style="cursor:pointer;">
+      <div class="header-label">Primes</div>
+      <div class="header-value" id="maxprime-display" style="color:var(--gold);">11 <span style="font-size:0.6rem; margin-left:4px; opacity:0.7;">▼</span></div>
+    </div>
+    <div class="header-item">
+      <button class="btn btn-secondary btn-small" onclick="pauseGame()">☰</button>
+    </div>
+  </div>
+
+  <div class="target-bar">
+    <span style="font-size:0.85rem;">Target: <strong id="target-display">0</strong></span>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+
+  <div class="lives-bar" id="lives-bar"></div>
+
+  <div class="board-container" id="board-container"></div>
+
+  <div id="gameplay-banner" style="
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 60px; width: 100%; max-width: 500px; margin: 0 auto;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.1);
+    z-index: 50; font-size: 0.7rem; color: rgba(255,255,255,0.3);
+    letter-spacing: 1px;
+  ">AD</div>
+</div>
+
+<!-- ========== PURCHASE SCREEN ========== -->
+<div id="purchase-screen" class="screen">
+  <div class="game-logo" style="font-size:2.5rem;"><span class="prime">Prime</span><span class="pop">Pop</span></div>
+  <div class="purchase-card">
+    <h2>Unlock Full Game</h2>
+    <p>You've completed the free levels! Unlock unlimited levels and go ad-free.</p>
+    <div class="purchase-price" id="purchase-price-display">$2.99</div>
+    <div class="purchase-features">
+      ✓ Unlimited levels<br>
+      ✓ All board sizes<br>
+      ✓ Higher number ranges<br>
+      ✓ Ad-free experience<br>
+      ✓ Discounted extra lives<br>
+      ✓ One-time purchase — yours forever
+    </div>
+    <button id="purchase-btn" class="btn btn-primary" style="width:100%;" onclick="handlePurchase()">Unlock Now — $2.99</button>
+    <p id="purchase-status" style="font-size:0.8rem; opacity:0.6; margin-top:8px; display:none;"></p>
+    <br>
+    <button class="btn btn-secondary btn-small" style="width:100%; margin-bottom:8px;" onclick="restorePurchases()">Restore Purchase</button>
+    <button class="btn btn-secondary btn-small" onclick="purchaseScreenBack()">Back</button>
+  </div>
+</div>
+
+<!-- ========== SETTINGS SCREEN ========== -->
+<div id="settings-screen" class="screen">
+  <h2 style="margin-bottom:10px;">Settings</h2>
+  <div class="settings-group">
+    <h3>Theme</h3>
+    <div class="theme-row">
+      <div class="theme-option" id="theme-btn-lagoon" onclick="setTheme('lagoon')">
+        <div class="theme-swatch" style="background:linear-gradient(180deg,#38bdf8,#0891b2 60%,#164e63);"></div>
+        Lagoon
+      </div>
+      <div class="theme-option" id="theme-btn-aurora" onclick="setTheme('aurora')">
+        <div class="theme-swatch" style="background:radial-gradient(ellipse at 50% 25%,#7C22CE,#3B0764 60%,#150322);"></div>
+        Aurora
+      </div>
+      <div class="theme-option" id="theme-btn-starlight" onclick="setTheme('starlight')">
+        <div class="theme-swatch" style="background:radial-gradient(ellipse at 30% 15%,#312e81,#1e1b4b 50%,#0b0a1f);"></div>
+        Starlight
+      </div>
+    </div>
+  </div>
+  <div class="settings-group">
+    <h3>Audio</h3>
+    <div class="settings-row">
+      <span>Sound Effects</span>
+      <div class="toggle on" id="toggle-sfx" onclick="toggleSetting('sfx')"></div>
+    </div>
+    <div class="settings-row">
+      <span>Background Music</span>
+      <div class="toggle on" id="toggle-music" onclick="toggleSetting('music')"></div>
+    </div>
+  </div>
+  <div class="settings-group">
+    <h3>Account</h3>
+    <div class="settings-row">
+      <span>Player Name</span>
+      <input type="text" id="player-name-input" placeholder="Guest" onfocus="this.select()"
+        style="background:rgba(255,255,255,0.15); border:none; border-radius:8px; padding:8px 12px; color:#fff; font-size:0.95rem; width:140px; text-align:right;">
+    </div>
+    <div class="settings-row">
+      <span>Reset All Data</span>
+      <button class="btn btn-danger btn-small" onclick="resetProgress()">Reset</button>
+    </div>
+  </div>
+  <div class="settings-group">
+    <h3>Purchases</h3>
+    <div class="settings-row">
+      <span id="settings-purchase-label">Ad-Free Unlock</span>
+      <button id="settings-purchase-btn" class="btn btn-primary btn-small" onclick="handlePurchase()">$2.99</button>
+    </div>
+    <div class="settings-row">
+      <span>Bought on another device?</span>
+      <button class="btn btn-secondary btn-small" onclick="restorePurchases()">Restore</button>
+    </div>
+  </div>
+  <div class="settings-group">
+    <h3>Help</h3>
+    <div class="settings-row">
+      <span>Replay Tutorial</span>
+      <button class="btn btn-secondary btn-small" onclick="replayTutorialFromSettings()">Play</button>
+    </div>
+  </div>
+  <div class="settings-group">
+    <h3>About</h3>
+    <div class="settings-row">
+      <span>Privacy Policy</span>
+      <button class="btn btn-secondary btn-small" onclick="openPrivacyPolicy()">View</button>
+    </div>
+    <div class="settings-row" style="border-bottom:none;">
+      <span style="opacity:0.5; font-size:0.85rem;">PrimePop v1.0 · QratedSoul LLC</span>
+    </div>
+  </div>
+  <button class="btn btn-primary" style="margin-top:10px;" onclick="settingsBack()">Back</button>
+</div>
+
+<!-- ========== PRIMES DROPDOWN ========== -->
+<div id="primes-dropdown" style="
+  display: none;
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 95px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--overlay-grad);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 16px;
+  z-index: 200;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  max-width: 300px;
+  width: 85%;
+"></div>
+
+<!-- ========== PRIVACY POLICY OVERLAY ========== -->
+<div class="overlay" id="privacy-overlay" style="overflow-y:auto; padding:20px;">
+  <div style="
+    background: linear-gradient(160deg, rgba(255,255,255,0.95) 0%, rgba(245,240,255,0.97) 100%);
+    border-radius: 20px; padding: 24px; max-width: 600px; width: 95%; margin: 20px auto;
+    color: #1a1a2e; font-size: 0.85rem; line-height: 1.65; box-shadow: 0 16px 48px rgba(0,0,0,0.3);
+    max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  ">
+    <h2 style="color:#3B0764; font-size:1.3rem; margin-bottom:2px;">Privacy Policy</h2>
+    <p style="color:#666; font-size:0.8rem; margin-bottom:16px;">PrimePop · QratedSoul LLC · Last updated: March 26, 2026</p>
+
+    <p>QratedSoul LLC ("we", "our", or "us") built PrimePop as a mobile game application. This Privacy Policy explains what information is collected, how it is used, and your choices.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">1. Information We Collect</h3>
+    <p><strong>Stored on your device only:</strong> Game progress (level, score, settings, purchase status) is saved locally using localStorage. This data never leaves your device. If you enter a display name, it is also stored locally only.</p>
+    <p><strong>Collected by third-party services:</strong> We use Google AdMob to display ads. AdMob may collect device identifiers, IP address, and ad interaction data. See <span style="color:#7C22CE;">policies.google.com/privacy</span>. Purchases are processed by Apple or Google — we never receive your payment details.</p>
+    <p><strong>We do NOT collect:</strong> personal information, location data, contacts, photos, payment info, or health data.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">2. How We Use Information</h3>
+    <p>Local game data is used solely to save your progress. We do not transmit, sell, or share any data — PrimePop runs entirely on your device with no external servers.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">3. Advertising</h3>
+    <p>PrimePop displays ads through Google AdMob (interstitials, rewarded ads, and banners). If you purchase the ad-free unlock, all ads are removed and AdMob is no longer initialized.</p>
+    <p>Manage ad preferences: <strong>iOS:</strong> Settings → Privacy & Security → Tracking. <strong>Android:</strong> Settings → Google → Ads.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">4. In-App Purchases</h3>
+    <p>All transactions are processed securely through Apple's App Store or Google Play. We never receive or store your payment details.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">5. Children's Privacy</h3>
+    <p>PrimePop is a math-based game suitable for all ages. We do not knowingly collect personal information from children under 13. Since the app does not collect personal information from any user, no special data is gathered from children. Parents can manage ad personalization through device settings.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">6. Data Retention & Security</h3>
+    <p>All data is stored locally. Delete it anytime via "Reset All Data" in Settings or by uninstalling the app. Since no data is transmitted externally, there is no risk of data breach from our side.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">7. Your Rights</h3>
+    <p>You have full control over your data at all times. Delete all app data through Settings or by uninstalling.</p>
+
+    <h3 style="color:#3B0764; font-size:1rem; margin-top:18px;">8. Changes & Contact</h3>
+    <p>We may update this policy; changes will be reflected here with an updated date.</p>
+    <p style="background:#f0e6ff; padding:12px; border-radius:8px; margin-top:10px;"><strong>QratedSoul LLC</strong><br>Email: qratedsoul@gmail.com</p>
+
+    <p style="text-align:center; color:#999; font-size:0.75rem; margin-top:16px;">© 2026 QratedSoul LLC. All rights reserved.</p>
+
+    <button class="btn btn-primary" style="width:100%; margin-top:16px;" onclick="hideOverlay('privacy-overlay')">Close</button>
+  </div>
+</div>
+
+<!-- ========== OVERLAYS ========== -->
+<div class="overlay" id="level-up-overlay">
+  <div class="overlay-card">
+    <div class="stars" id="levelup-stars">⭐🎉⭐</div>
+    <h2 id="levelup-title">Level Complete!</h2>
+    <p id="levelup-text">You scored enough primes to advance!</p>
+    <p id="levelup-time" style="font-size:0.9rem; opacity:0.8; margin:4px 0;"></p>
+    <p id="levelup-best" style="font-size:0.85rem; opacity:0.7; margin:2px 0;"></p>
+    <p id="levelup-pins" style="font-size:1.1rem; margin:8px 0;"></p>
+    <button class="btn btn-primary" style="margin-bottom:8px; width:100%;" onclick="goToNextRoundScreen()">Continue</button>
+    <button class="btn btn-secondary btn-small" style="width:100%;" onclick="replayLevel()">Replay Level</button>
+  </div>
+</div>
+
+<div class="overlay" id="next-round-overlay">
+  <div class="overlay-card">
+    <h2 id="nextround-title" style="font-size:1.6rem; margin-bottom:6px;">Round 2</h2>
+    <p id="nextround-info" style="font-size:0.9rem; opacity:0.8; margin-bottom:16px;"></p>
+    <div id="nextround-pins" style="font-size:1.4rem; margin-bottom:16px;"></div>
+    <button class="btn btn-primary" style="width:100%; font-size:1.1rem; padding:16px;" onclick="startNextRound()">Start Round</button>
+    <!-- Upsell button — shown between rounds for free users from level 5+ -->
+    <button id="nextround-upsell-btn" class="btn btn-secondary btn-small" style="width:100%; margin-top:10px; display:none;" onclick="handlePurchase()">Skip Ads — $2.99</button>
+  </div>
+</div>
+
+<div class="overlay" id="pause-overlay">
+  <div class="overlay-card">
+    <h2>Paused</h2>
+    <p>Take a breather!</p>
+    <button class="btn btn-primary" style="margin-bottom:12px;" onclick="resumeGame()">Resume</button>
+    <br>
+    <button class="btn btn-secondary btn-small" style="margin-bottom:8px;" onclick="openSettingsFromPause()">Settings</button>
+    <br>
+    <button class="btn btn-secondary btn-small" onclick="quitToTitle()">Quit to Menu</button>
+  </div>
+</div>
+
+<div class="overlay" id="gameover-overlay">
+  <div class="overlay-card">
+    <div class="stars" id="gameover-hearts"></div>
+    <h2 style="color:#ff6b6b;">Out of Lives!</h2>
+    <p id="gameover-text">You've used all your lives. Your bubbles can't pop without them!</p>
+    <p style="font-size:0.85rem; opacity:0.7; margin-bottom:12px;">Final Score: <strong id="gameover-score">0</strong> | Reached Level: <strong id="gameover-level">1</strong></p>
+    <!-- Refill lives (price differs for paid vs free users; set at runtime with the localized store price) -->
+    <button id="buy-lives-btn" class="btn btn-primary" style="margin-bottom:8px; width:100%; background:linear-gradient(135deg, #FFB800, #F59E0B);" onclick="buyLivesPack()">Refill Lives</button>
+    <!-- Watch ad for 1 free life (free users only) -->
+    <button id="ad-pin-btn" class="btn btn-primary" style="margin-bottom:8px; width:100%; background:linear-gradient(135deg, #4CAF50, #45a049);" onclick="watchAdForPin()">One More Chance?</button>
+    <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" onclick="restartFullGame()">Start Over (Level 1)</button>
+    <button class="btn btn-secondary btn-small" style="width:100%;" onclick="quitToTitle()">Quit to Menu</button>
+  </div>
+</div>
+
+<!-- ========== INTERACTIVE TUTORIAL ========== -->
+<div class="overlay" id="tutorial-overlay" style="flex-direction: column; justify-content: center; padding: 20px;">
+  <div class="overlay-card" style="max-width: 440px; width: 95%;">
+    <h2 id="tutorial-title" style="font-size:1.3rem; margin-bottom:12px;">Welcome to PrimePop!</h2>
+    <div id="tutorial-board" style="
+      width: 100%; height: 280px; margin: 16px 0;
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    "></div>
+    <p id="tutorial-text" style="font-size:1rem; line-height:1.6; margin-bottom:12px;"></p>
+    <div id="tutorial-progress" style="
+      display: flex; justify-content: center; gap: 8px; margin-bottom: 16px;
+    "></div>
+    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin-bottom: 12px;">
+      <input type="checkbox" id="hide-tutorial-checkbox" style="width: 16px; height: 16px; cursor: pointer;">
+      Don't show tutorial again
+    </label>
+    <button id="tutorial-button" class="btn btn-primary" style="width: 100%;">Next</button>
+    <button id="skip-tutorial-button" class="btn btn-secondary btn-small" style="width: 100%; margin-top: 8px;" onclick="skipTutorial()">Skip Tutorial</button>
+  </div>
+</div>
+
+<div class="overlay" id="splash-3bubble">
+  <div class="overlay-card">
+    <div class="stars">🫧🫧🫧</div>
+    <h2 style="font-size:1.4rem;">New Ability!</h2>
+    <p style="font-size:0.95rem; line-height:1.7;">
+      You can now pick up to <strong style="color:#ffd700;">3 bubbles</strong>!<br><br>
+      Any combination of adding and subtracting that makes a <strong style="color:#ffd700;">prime number</strong> will count. More bubbles, more possibilities!
+    </p>
+    <button class="btn btn-primary" onclick="dismissSplash('splash-3bubble')">Let's go!</button>
+  </div>
+</div>
+
+<!-- ========== GENERIC CONFIRM DIALOG (replaces system confirm() popups) ========== -->
+<div class="overlay" id="confirm-overlay" style="z-index: 400;">
+  <div class="overlay-card">
+    <h2 id="confirm-title" style="font-size:1.4rem;">Are you sure?</h2>
+    <p id="confirm-text"></p>
+    <button class="btn btn-danger" id="confirm-yes" style="width:100%; margin-bottom:10px;">Yes</button>
+    <button class="btn btn-secondary" id="confirm-no" style="width:100%;">Cancel</button>
+  </div>
+</div>
+
+<!-- ========== RATE THE APP PROMPT ========== -->
+<div class="overlay" id="rate-overlay" style="z-index: 380;">
+  <div class="overlay-card">
+    <div class="stars" style="font-size:2.4rem; letter-spacing:4px;">⭐️⭐️⭐️⭐️⭐️</div>
+    <h2 style="font-size:1.5rem;">Enjoying PrimePop?</h2>
+    <p>A quick rating helps other players discover the game — it only takes a few seconds and means the world to a small developer. 🫶</p>
+    <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" onclick="rateNow()">Rate PrimePop</button>
+    <button class="btn btn-secondary btn-small" style="width:100%;" onclick="dismissRate()">Maybe later</button>
+  </div>
+</div>
+
+<div class="result-display" id="result-display"></div>
+
+<script>
+// ============================================================
+// DURABLE STORAGE
+// localStorage is the fast, always-available copy. When running
+// as a native app, every write is mirrored to Capacitor
+// Preferences (real native storage), because iOS can wipe a
+// WebView's localStorage under storage pressure. On startup we
+// restore anything missing from the native copy.
+// ============================================================
+function getPrefsPlugin() {
+  try {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform() &&
+        Capacitor.Plugins && Capacitor.Plugins.Preferences) {
+      return Capacitor.Plugins.Preferences;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function storeGet(key) {
+  try { return localStorage.getItem(key); } catch (e) { return null; }
+}
+
+function storeSet(key, value) {
+  try { localStorage.setItem(key, value); } catch (e) {}
+  const prefs = getPrefsPlugin();
+  if (prefs) { try { prefs.set({ key, value }); } catch (e) {} }
+}
+
+function storeRemove(key) {
+  try { localStorage.removeItem(key); } catch (e) {}
+  const prefs = getPrefsPlugin();
+  if (prefs) { try { prefs.remove({ key }); } catch (e) {} }
+}
+
+// Copy any game data that exists in native storage but is missing
+// from localStorage (e.g. after iOS evicted the WebView data).
+async function restoreFromNativeStorage() {
+  const prefs = getPrefsPlugin();
+  if (!prefs) return;
+  try {
+    const { keys } = await prefs.keys();
+    for (const key of keys) {
+      if (!key || !key.startsWith('primepop_')) continue;
+      let missing = false;
+      try { missing = localStorage.getItem(key) === null; } catch (e) {}
+      if (missing) {
+        const { value } = await prefs.get({ key });
+        if (value !== null && value !== undefined) {
+          try { localStorage.setItem(key, value); } catch (e) {}
+        }
+      }
+    }
+  } catch (e) {
+    console.log('[Storage] Native restore skipped:', e.message);
+  }
+}
+
+// ============================================================
+// PURCHASE FLAG — stored globally, NEVER per save slot.
+// A purchase belongs to the customer, not to one saved game.
+// ============================================================
+function isPurchasedGlobal() {
+  return storeGet('primepop_purchased') === 'true';
+}
+
+function setPurchasedGlobal(value) {
+  storeSet('primepop_purchased', String(!!value));
+}
+
+// ============================================================
+// CUSTOM ICONS (SVG — replace emoji so hearts look identical on
+// every device instead of taking the OS's emoji style)
+// ============================================================
+const SVG_HEART =
+  '<svg class="ui-heart" viewBox="0 0 24 24"><path fill="url(#heartGrad)" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" d="M12 21C6 16 2 12.5 2 8.5 2 5.4 4.4 3 7.5 3c1.8 0 3.4.9 4.5 2.3C13.1 3.9 14.7 3 16.5 3 19.6 3 22 5.4 22 8.5c0 4-4 7.5-10 12.5z"/><ellipse cx="8.6" cy="7.4" rx="2.2" ry="1.5" fill="rgba(255,255,255,0.55)" transform="rotate(-20 8.6 7.4)"/></svg>';
+const SVG_HEART_EMPTY =
+  '<svg class="ui-heart" viewBox="0 0 24 24"><path fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.35)" stroke-width="1" d="M12 21C6 16 2 12.5 2 8.5 2 5.4 4.4 3 7.5 3c1.8 0 3.4.9 4.5 2.3C13.1 3.9 14.7 3 16.5 3 19.6 3 22 5.4 22 8.5c0 4-4 7.5-10 12.5z"/></svg>';
+const SVG_BUBBLE =
+  '<svg class="ui-heart" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="url(#bubbleGrad)" stroke="rgba(255,255,255,0.55)" stroke-width="1"/><ellipse cx="8.8" cy="8.2" rx="2.6" ry="1.7" fill="rgba(255,255,255,0.75)" transform="rotate(-25 8.8 8.2)"/></svg>';
+
+// Row of hearts, e.g. heartsHTML(2, 3) → ♥ ♥ ♡
+function heartsHTML(count, max) {
+  let html = '';
+  for (let i = 0; i < max; i++) {
+    html += i < count ? SVG_HEART : SVG_HEART_EMPTY;
+  }
+  return html;
+}
+
+// ============================================================
+// THEMES — Lagoon (default), Aurora, Starlight
+// Selected in Settings, saved across sessions.
+// ============================================================
+const THEMES = ['lagoon', 'aurora', 'starlight'];
+
+function buildAmbience(theme) {
+  const amb = document.getElementById('ambience');
+  if (!amb) return;
+  amb.innerHTML = '';
+
+  const addMicroBubbles = (n) => {
+    for (let i = 0; i < n; i++) {
+      const m = document.createElement('div');
+      m.className = 'amb-micro';
+      const size = 4 + Math.random() * 10;
+      m.style.width = size + 'px';
+      m.style.height = size + 'px';
+      m.style.left = (Math.random() * 96) + '%';
+      m.style.animationDuration = (8 + Math.random() * 9) + 's';
+      m.style.animationDelay = (-Math.random() * 15) + 's';
+      amb.appendChild(m);
+    }
+  };
+
+  if (theme === 'aurora') {
+    ['g1', 'g2', 'g3'].forEach(cls => {
+      const g = document.createElement('div');
+      g.className = 'amb-glow ' + cls;
+      amb.appendChild(g);
+    });
+    addMicroBubbles(10);
+  } else if (theme === 'starlight') {
+    ['n1', 'n2'].forEach(cls => {
+      const n = document.createElement('div');
+      n.className = 'amb-nebula ' + cls;
+      amb.appendChild(n);
+    });
+    for (let i = 0; i < 30; i++) {
+      const s = document.createElement('div');
+      s.className = 'amb-star';
+      const size = 1 + Math.random() * 2.2;
+      s.style.width = size + 'px';
+      s.style.height = size + 'px';
+      s.style.left = (Math.random() * 98) + '%';
+      s.style.top = (Math.random() * 96) + '%';
+      s.style.animationDelay = (-Math.random() * 3.5) + 's';
+      s.style.animationDuration = (2.5 + Math.random() * 3) + 's';
+      amb.appendChild(s);
+    }
+  } else {
+    // Lagoon: sun rays + rising micro-bubbles
+    const rays = [
+      { left: '12%', width: '14vw', rot: 16, delay: 0 },
+      { left: '46%', width: '9vw',  rot: 24, delay: 2.2 },
+      { left: '74%', width: '7vw',  rot: 10, delay: 4 },
+    ];
+    rays.forEach(r => {
+      const el = document.createElement('div');
+      el.className = 'amb-ray';
+      el.style.left = r.left;
+      el.style.width = r.width;
+      el.style.transform = `rotate(${r.rot}deg)`;
+      el.style.animationDelay = r.delay + 's';
+      amb.appendChild(el);
+    });
+    addMicroBubbles(14);
+  }
+}
+
+function applyTheme(theme) {
+  if (!THEMES.includes(theme)) theme = 'lagoon';
+  document.body.dataset.theme = theme;
+  buildAmbience(theme);
+  THEMES.forEach(t => {
+    const btn = document.getElementById('theme-btn-' + t);
+    if (btn) btn.classList.toggle('theme-active', t === theme);
+  });
+}
+
+function setTheme(theme) {
+  storeSet('primepop_theme', theme);
+  applyTheme(theme);
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const MAX_LIVES = 3;
+const LIFE_BONUS_EVERY = 5; // earn +1 life every N completed levels
+let gameOverCount = 0; // tracks how many times player has hit 0 pins this session
+
+const AD_LIFE_MESSAGES = [
+  'One More Chance?',        // 1st game over (always)
+  'Find a Spare Life!',      // 2nd game over (always)
+  'Heart Recovery Time',
+  'Emergency Life Supply',
+  'Rescue Life Incoming!',
+  'Lucky Life Drop',
+  'Shake the Heart Tree',
+];
+
+function getAdLifeMessage() {
+  if (gameOverCount === 1) return AD_LIFE_MESSAGES[0];
+  if (gameOverCount === 2) return AD_LIFE_MESSAGES[1];
+  // 3rd time onward: randomly pick from the full list
+  return AD_LIFE_MESSAGES[Math.floor(Math.random() * AD_LIFE_MESSAGES.length)];
+}
+
+// ============================================================
+// AD SYSTEM (AdMob via Capacitor — graceful fallback in browser)
+// ============================================================
+// Interstitial/banner schedule. Free players reach level 8 max
+// (the purchase wall), so only levels the free tier can actually
+// reach are listed — paid players never see interstitials.
+const AD_SPECIFIC_LEVELS = [5, 8];
+const UPSELL_FROM_LEVEL = 5; // show "Skip Ads" upsell between rounds from here
+
+function shouldShowInterstitial(level) {
+  // No interstitial ads if player has purchased the unlock
+  if (state.purchased) return false;
+  return AD_SPECIFIC_LEVELS.includes(level);
+}
+
+// Banner ad schedule
+function shouldShowBannerAd(level) {
+  if (state.purchased) return false;
+  return AD_SPECIFIC_LEVELS.includes(level);
+}
+
+// ============================================================
+// ⚠️ AD TEST MODE — set to false BEFORE archiving for the App Store!
+// true  = Google's official sample ads (always fill, safe to tap)
+// false = your real production ads (NEVER tap these yourself)
+// ============================================================
+const AD_TEST_MODE = false;
+
+// Google AdMob Production IDs
+const AD_IDS_PROD = {
+  interstitial: {
+    android: 'ca-app-pub-8169978815147236/7056230725',
+    ios:     'ca-app-pub-8169978815147236/1077279183',
+  },
+  rewarded: {
+    android: 'ca-app-pub-8169978815147236/1871486109',
+    ios:     'ca-app-pub-8169978815147236/9762285118',
+  },
+  banner: {
+    android: 'ca-app-pub-8169978815147236/5823040101',
+    ios:     'ca-app-pub-8169978815147236/2390360855',
+  },
+};
+
+// Google's official, publicly documented sample ad unit IDs
+const AD_IDS_TEST = {
+  interstitial: {
+    android: 'ca-app-pub-3940256099942544/1033173712',
+    ios:     'ca-app-pub-3940256099942544/4411468910',
+  },
+  rewarded: {
+    android: 'ca-app-pub-3940256099942544/5224354917',
+    ios:     'ca-app-pub-3940256099942544/1712485313',
+  },
+  banner: {
+    android: 'ca-app-pub-3940256099942544/6300978111',
+    ios:     'ca-app-pub-3940256099942544/2934735716',
+  },
+};
+
+const AD_IDS = AD_TEST_MODE ? AD_IDS_TEST : AD_IDS_PROD;
+if (AD_TEST_MODE) console.warn('[Ads] TEST MODE ON — sample ads will show. Set AD_TEST_MODE = false before the App Store build!');
+
+let admobReady = false;
+let interstitialLoaded = false;
+let rewardedLoaded = false;
+
+// The AdMob plugin's native side registers itself with the Capacitor
+// bridge, so we reach it through Capacitor.Plugins — no bundler needed.
+// (A bare `import('@capacitor-community/admob')` cannot be resolved in
+// a plain WebView, which is why ads never loaded before.)
+function getAdMobPlugin() {
+  try {
+    if (typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform() &&
+        Capacitor.Plugins && Capacitor.Plugins.AdMob) {
+      return Capacitor.Plugins.AdMob;
+    }
+  } catch (e) {}
+  return null;
+}
+
+// Event names from @capacitor-community/admob (verified against the
+// installed plugin — dist/esm/reward/reward-ad-plugin-events.enum.js)
+const REWARD_EVENTS = {
+  Rewarded: 'onRewardedVideoAdReward',
+  Dismissed: 'onRewardedVideoAdDismissed',
+  FailedToLoad: 'onRewardedVideoAdFailedToLoad',
+};
+
+// Rewarded-ad state shared between the one-time listeners (registered
+// in initAdMob) and showRewardedAd. Registering listeners once fixes
+// the old bug where every ad view piled on another set of listeners.
+let _rewardEarned = false;
+let _rewardedResolve = null;
+
+async function initAdMob() {
+  try {
+    // Skip ads entirely if user has purchased ad-free
+    if (state.purchased) {
+      console.log('[Ads] Ad-free purchased — skipping AdMob init');
+      return;
+    }
+    const AdMob = getAdMobPlugin();
+    if (!AdMob) {
+      console.log('[Ads] AdMob plugin not available (browser or plugin missing) — ads disabled');
+      // Retry a couple of times in case the bridge wasn't ready yet
+      initAdMob._retries = (initAdMob._retries || 0) + 1;
+      if (initAdMob._retries <= 2 && typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform()) {
+        setTimeout(initAdMob, 3000);
+      }
+      return;
+    }
+
+    // --- iOS App Tracking Transparency (required by Apple when ads
+    // may use the device identifier). Must run before initialize().
+    try {
+      if (Capacitor.getPlatform() === 'ios') {
+        const info = await AdMob.trackingAuthorizationStatus();
+        if (info && info.status === 'notDetermined') {
+          await AdMob.requestTrackingAuthorization();
+        }
+      }
+    } catch (e) {
+      console.log('[Ads] ATT check skipped:', e.message);
+    }
+
+    // --- Google UMP consent (required for EEA/GDPR users)
+    try {
+      const consentInfo = await AdMob.requestConsentInfo({});
+      if (consentInfo && consentInfo.status === 'REQUIRED' && consentInfo.isConsentFormAvailable) {
+        await AdMob.showConsentForm();
+      }
+    } catch (e) {
+      console.log('[Ads] Consent flow skipped:', e.message);
+    }
+
+    await AdMob.initialize({});
+    admobReady = true;
+    console.log('[Ads] AdMob initialized');
+
+    // Register rewarded-ad listeners ONCE for the whole session
+    AdMob.addListener(REWARD_EVENTS.Rewarded, () => {
+      _rewardEarned = true;
+    });
+    AdMob.addListener(REWARD_EVENTS.Dismissed, () => {
+      rewardedLoaded = false;
+      prepareRewarded(); // pre-load the next one
+      if (_rewardedResolve) {
+        const resolve = _rewardedResolve;
+        _rewardedResolve = null;
+        resolve(_rewardEarned ? { type: 'reward', amount: 1 } : null);
+      }
+    });
+    AdMob.addListener(REWARD_EVENTS.FailedToLoad, () => {
+      rewardedLoaded = false;
+    });
+
+    prepareInterstitial();
+    prepareRewarded();
+  } catch (e) {
+    console.log('[Ads] AdMob init failed:', e.message);
+    if (!initAdMob._retried && !admobReady) {
+      initAdMob._retried = true;
+      setTimeout(initAdMob, 5000);
+    }
+  }
+}
+
+async function prepareInterstitial() {
+  if (!admobReady) return;
+  const AdMob = getAdMobPlugin();
+  if (!AdMob) return;
+  try {
+    const platform = Capacitor.getPlatform();
+    await AdMob.prepareInterstitial({
+      adId: AD_IDS.interstitial[platform] || AD_IDS.interstitial.android,
+      isTesting: AD_TEST_MODE,
+    });
+    interstitialLoaded = true;
+    console.log('[Ads] Interstitial ready');
+  } catch (e) {
+    console.log('[Ads] Interstitial prep failed:', e.message);
+  }
+}
+
+async function showInterstitialAd() {
+  if (!admobReady || !interstitialLoaded) return Promise.resolve();
+  const AdMob = getAdMobPlugin();
+  if (!AdMob) return Promise.resolve();
+  try {
+    await AdMob.showInterstitial();
+    interstitialLoaded = false;
+    prepareInterstitial(); // Pre-load the next one
+    console.log('[Ads] Interstitial shown');
+  } catch (e) {
+    console.log('[Ads] Interstitial show failed:', e.message);
+  }
+}
+
+async function prepareRewarded() {
+  if (!admobReady) return;
+  const AdMob = getAdMobPlugin();
+  if (!AdMob) return;
+  try {
+    const platform = Capacitor.getPlatform();
+    await AdMob.prepareRewardVideoAd({
+      adId: AD_IDS.rewarded[platform] || AD_IDS.rewarded.android,
+      isTesting: AD_TEST_MODE,
+    });
+    rewardedLoaded = true;
+    console.log('[Ads] Rewarded ad ready');
+  } catch (e) {
+    console.log('[Ads] Rewarded prep failed:', e.message);
+  }
+}
+
+// Returns: {type,amount} if the player earned the reward,
+//          null if they dismissed the ad early,
+//          'unavailable' if no ad could be shown (no free rewards!).
+async function showRewardedAd() {
+  const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+  if (!isNative) {
+    // Browser testing only: simulate a completed ad
+    return { type: 'reward', amount: 1 };
+  }
+  const AdMob = getAdMobPlugin();
+  if (!AdMob || !admobReady || !rewardedLoaded) {
+    // On a real device with no ad loaded, do NOT hand out a free
+    // reward (that was an infinite-lives loophole).
+    return 'unavailable';
+  }
+  try {
+    _rewardEarned = false;
+    return await new Promise((resolve) => {
+      _rewardedResolve = resolve;
+      // Safety net: if no Dismissed event arrives within 3 minutes,
+      // unblock the UI. (Rewarded ads are typically 15–60 seconds.)
+      setTimeout(() => {
+        if (_rewardedResolve === resolve) {
+          _rewardedResolve = null;
+          resolve(_rewardEarned ? { type: 'reward', amount: 1 } : 'unavailable');
+        }
+      }, 180000);
+      AdMob.showRewardVideoAd().catch((e) => {
+        console.log('[Ads] Rewarded show failed:', e.message);
+        if (_rewardedResolve === resolve) {
+          _rewardedResolve = null;
+          resolve('unavailable');
+        }
+      });
+    });
+  } catch (e) {
+    console.log('[Ads] Rewarded show failed:', e.message);
+    return 'unavailable';
+  }
+}
+
+// Initialize ads when game loads
+setTimeout(initAdMob, 1000);
+
+let state = {
+  level: 1, score: 0, totalScore: 0,
+  bubbles: [],
+  numBubbles: 8,
+  maxNumber: 10,
+  maxPrime: 11,
+  targetScore: 30,
+  selectedIds: [],
+  isAnimating: false,
+  sfx: true,
+  playerName: 'Guest',
+  purchased: isPurchasedGlobal(), // read from the global key, never from a save slot
+  paused: false,
+  lives: MAX_LIVES,
+  animFrameId: null,
+  levelStartTime: null,
+  currentSlot: null,
+};
+
+// Pre-computed list of primes for level progression
+const PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97];
+
+// Get the max prime for a given level (level 1 → 5, level 2 → 7, level 3 → 11, ...)
+function getMaxPrimeForLevel(level) {
+  // Slower progression — stay at each prime for 2-3 levels
+  // Levels 1-2: maxPrime=5 (numbers 1-4)
+  // Levels 3-4: maxPrime=7 (numbers 1-6)
+  // Levels 5-6: maxPrime=11 (numbers 1-10)
+  // Levels 7-9: maxPrime=13 (numbers 1-12)
+  // Levels 10-12: maxPrime=17 (numbers 1-16)
+  // Levels 13-15: maxPrime=19 (numbers 1-18)
+  // Levels 16-18: maxPrime=23 (numbers 1-22)
+  // Levels 19+: continue advancing every 3 levels
+  const tiers = [
+    { upTo: 2, primeIdx: 2 },   // 5
+    { upTo: 4, primeIdx: 3 },   // 7
+    { upTo: 6, primeIdx: 4 },   // 11
+    { upTo: 9, primeIdx: 5 },   // 13
+    { upTo: 12, primeIdx: 6 },  // 17
+    { upTo: 15, primeIdx: 7 },  // 19
+    { upTo: 18, primeIdx: 8 },  // 23
+  ];
+
+  for (const tier of tiers) {
+    if (level <= tier.upTo) return PRIMES[tier.primeIdx];
+  }
+
+  // Beyond level 18: advance every 3 levels
+  const extraLevels = level - 18;
+  const extraIdx = 9 + Math.floor((extraLevels - 1) / 3);
+  return PRIMES[Math.min(extraIdx, PRIMES.length - 1)];
+}
+
+// Figure out the max number on any single bubble so that add/subtract stays within the max prime
+// e.g. if maxPrime is 11, the biggest single number should be maxPrime-1 (10)
+// so that the largest possible sum of two bubbles is ≤ some reasonable range
+function getMaxBubbleNumber(maxPrime) {
+  return maxPrime - 1;
+}
+
+// Level config
+function getLevelConfig(level) {
+  level = Math.max(1, Math.floor(level) || 1); // Ensure valid positive integer
+  const maxPrime = getMaxPrimeForLevel(level);
+  const maxNumber = getMaxBubbleNumber(maxPrime);
+  // Start with 8 bubbles, add 2 per level, cap at 30
+  const numBubbles = Math.min(8 + (level - 1) * 2, 30);
+  // Target score grows significantly with higher early level targets
+  const targetScore = 50 + (level - 1) * 30 + Math.floor(level * level * 1.5);
+  // Speed: steady for 1-5, bump after 5, bigger bump after 10
+  let speed = 0.5;
+  if (level <= 5) {
+    speed = 0.5 + (level - 1) * 0.04; // 0.50 → 0.66 gentle
+  } else if (level <= 10) {
+    speed = 0.7 + (level - 5) * 0.15;  // 0.70 → 1.45 noticeable
+  } else {
+    speed = 1.5 + (level - 10) * 0.2;  // 1.50+ fast
+  }
+  speed = Math.min(speed, 2.8);
+
+  return { numBubbles, maxNumber, maxPrime, targetScore, speed };
+}
+
+// ============================================================
+// PRIME CHECK
+// ============================================================
+function isPrime(n) {
+  if (n < 2) return false;
+  if (n === 2) return true;
+  if (n % 2 === 0) return false;
+  for (let i = 3; i <= Math.sqrt(n); i += 2) {
+    if (n % i === 0) return false;
+  }
+  return true;
+}
+
+// The largest prime a player can actually reach this round:
+// combining the biggest bubble numbers with + (2 or 3 bubbles).
+// e.g. bubbles up to 10, two selectable → sums up to 20 → primes to 19.
+function getMaxCombinedValue() {
+  return getMaxSelectable() * state.maxNumber;
+}
+
+function getAchievablePrimes() {
+  const limit = getMaxCombinedValue();
+  const primes = [];
+  for (let n = 2; n <= limit; n++) {
+    if (isPrime(n)) primes.push(n);
+  }
+  return primes;
+}
+
+function getMaxAchievablePrime() {
+  const primes = getAchievablePrimes();
+  return primes.length ? primes[primes.length - 1] : 2;
+}
+
+// ============================================================
+// BUBBLE CREATION
+// ============================================================
+let nextBubbleId = 0;
+
+function getBubbleSize() {
+  const container = document.getElementById('board-container');
+  if (!container) return 54;
+  const area = container.clientWidth * container.clientHeight;
+  const perBubble = area / state.numBubbles;
+  // Big at level 1 (8 bubbles → ~90px), small at high levels (30 bubbles → ~38px)
+  return Math.max(36, Math.min(92, Math.sqrt(perBubble) * 0.62));
+}
+
+// Pre-shuffled number pools to avoid duplicates
+let _evenPool = [];
+let _oddPool = [];
+
+function refillPool(maxNum, parity) {
+  const pool = [];
+  for (let n = 1; n <= maxNum; n++) {
+    if (parity === 'even' && n % 2 === 0) pool.push(n);
+    if (parity === 'odd' && n % 2 !== 0) pool.push(n);
+  }
+  // Shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
+function pickNumber(maxNum, parity) {
+  if (parity === 'even') {
+    if (_evenPool.length === 0) _evenPool = refillPool(maxNum, 'even');
+    return _evenPool.pop();
+  } else {
+    if (_oddPool.length === 0) _oddPool = refillPool(maxNum, 'odd');
+    return _oddPool.pop();
+  }
+}
+
+function createBubble(maxNum, forceParity, speed, placeX, placeY) {
+  const container = document.getElementById('board-container');
+  if (!container) return null;
+  const size = getBubbleSize();
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+
+  let num;
+  if (forceParity === 'even' || forceParity === 'odd') {
+    num = pickNumber(maxNum, forceParity);
+  } else {
+    num = Math.floor(Math.random() * maxNum) + 1;
+  }
+  // Fallback if pool was empty — pick a random number with correct parity
+  if (num === undefined || num === null) {
+    if (forceParity === 'even') {
+      num = 2 + Math.floor(Math.random() * Math.floor(maxNum / 2)) * 2;
+    } else {
+      num = 1 + Math.floor(Math.random() * Math.ceil(maxNum / 2)) * 2;
+    }
+    num = Math.min(num, maxNum);
+    if (num < 1) num = 1;
+  }
+
+  // Use provided grid position or random fallback
+  const x = (placeX !== undefined) ? placeX : Math.random() * (cw - size);
+  const y = (placeY !== undefined) ? placeY : Math.random() * (ch - size);
+
+  // Random velocity — ensure no bubble starts with near-zero speed
+  const angle = Math.random() * Math.PI * 2;
+  const spd = speed * (0.7 + Math.random() * 0.6);
+
+  return {
+    id: nextBubbleId++,
+    num,
+    x, y,
+    vx: Math.cos(angle) * spd,
+    vy: Math.sin(angle) * spd,
+    size,
+    popping: false,
+    appearing: true,
+  };
+}
+
+function generateBubbles(count, maxNum, speed) {
+  const container = document.getElementById('board-container');
+  const size = getBubbleSize();
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+
+  // Grid-based placement: spread bubbles evenly across the board
+  const cols = Math.ceil(Math.sqrt(count * (cw / ch)));
+  const rows = Math.ceil(count / cols);
+  const cellW = cw / cols;
+  const cellH = ch / rows;
+
+  const positions = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (positions.length >= count) break;
+      // Center in cell with small random jitter
+      const jitterX = (Math.random() - 0.5) * Math.max(0, cellW - size) * 0.5;
+      const jitterY = (Math.random() - 0.5) * Math.max(0, cellH - size) * 0.5;
+      const px = Math.max(0, Math.min(cw - size, (c + 0.5) * cellW - size / 2 + jitterX));
+      const py = Math.max(0, Math.min(ch - size, (r + 0.5) * cellH - size / 2 + jitterY));
+      positions.push({ x: px, y: py });
+    }
+  }
+
+  // Shuffle positions so even/odd aren't grouped
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+
+  const bubbles = [];
+  const halfEven = Math.floor(count / 2);
+  for (let i = 0; i < halfEven; i++) {
+    const pos = positions[i] || { x: Math.random() * (cw - size), y: Math.random() * (ch - size) };
+    bubbles.push(createBubble(maxNum, 'even', speed, pos.x, pos.y));
+  }
+  for (let i = 0; i < count - halfEven; i++) {
+    const pos = positions[halfEven + i] || { x: Math.random() * (cw - size), y: Math.random() * (ch - size) };
+    bubbles.push(createBubble(maxNum, 'odd', speed, pos.x, pos.y));
+  }
+  return bubbles.filter(Boolean); // Remove any null entries from failed createBubble calls
+}
+
+// ============================================================
+// PHYSICS UPDATE — gentle bouncing, no sticking
+// ============================================================
+function updatePhysics() {
+  const container = document.getElementById('board-container');
+  if (!container) return;
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  if (cw <= 0 || ch <= 0) return; // Container not visible yet, skip physics
+  const levelSpeed = getLevelConfig(state.level).speed;
+
+  // Move each bubble
+  for (const b of state.bubbles) {
+    if (b.popping) continue;
+    b.x += b.vx;
+    b.y += b.vy;
+  }
+
+  // Wall bounce with gentle damping
+  for (const b of state.bubbles) {
+    if (b.popping) continue;
+    if (b.x < 0)            { b.x = 0;            b.vx =  Math.abs(b.vx) * 0.95; }
+    if (b.x + b.size > cw)  { b.x = cw - b.size;  b.vx = -Math.abs(b.vx) * 0.95; }
+    if (b.y < 0)            { b.y = 0;             b.vy =  Math.abs(b.vy) * 0.95; }
+    if (b.y + b.size > ch)  { b.y = ch - b.size;   b.vy = -Math.abs(b.vy) * 0.95; }
+  }
+
+  // Separate overlapping bubbles and apply repulsion
+  // Run multiple iterations to fully resolve overlaps each frame
+  const GAP = 6; // minimum gap between bubble edges
+  for (let iter = 0; iter < 4; iter++) {
+    for (let i = 0; i < state.bubbles.length; i++) {
+      const a = state.bubbles[i];
+      if (a.popping) continue;
+      const ax = a.x + a.size / 2;
+      const ay = a.y + a.size / 2;
+
+      for (let j = i + 1; j < state.bubbles.length; j++) {
+        const b = state.bubbles[j];
+        if (b.popping) continue;
+        const bx = b.x + b.size / 2;
+        const by = b.y + b.size / 2;
+
+        const dx = ax - bx;
+        const dy = ay - by;
+        const distSq = dx * dx + dy * dy;
+        const minDist = (a.size + b.size) / 2 + GAP;
+        const repulseRange = minDist * 1.8; // soft repulsion zone
+
+        if (distSq < repulseRange * repulseRange) {
+          const dist = Math.sqrt(distSq) || 0.1;
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          if (dist < minDist) {
+            // Hard separation: push apart immediately
+            const overlap = minDist - dist;
+            const push = overlap / 2 + 3;
+            a.x += nx * push;
+            a.y += ny * push;
+            b.x -= nx * push;
+            b.y -= ny * push;
+
+            // Elastic velocity swap (first iteration only)
+            if (iter === 0) {
+              const aVn = a.vx * nx + a.vy * ny;
+              const bVn = b.vx * nx + b.vy * ny;
+
+              if (aVn - bVn > 0) {
+                const aVt_x = a.vx - aVn * nx;
+                const aVt_y = a.vy - aVn * ny;
+                const bVt_x = b.vx - bVn * nx;
+                const bVt_y = b.vy - bVn * ny;
+
+                a.vx = bVn * nx + aVt_x;
+                a.vy = bVn * ny + aVt_y;
+                b.vx = aVn * nx + bVt_x;
+                b.vy = aVn * ny + bVt_y;
+
+                // Bounce boost proportional to speed
+                const boost = Math.max(0.2, levelSpeed * 0.3);
+                a.vx += nx * boost;
+                a.vy += ny * boost;
+                b.vx -= nx * boost;
+                b.vy -= ny * boost;
+              }
+            }
+          } else if (iter === 0) {
+            // Soft repulsion: gently push nearby bubbles apart
+            const strength = 0.04 * (1 - dist / repulseRange);
+            a.vx += nx * strength;
+            a.vy += ny * strength;
+            b.vx -= nx * strength;
+            b.vy -= ny * strength;
+          }
+        }
+      }
+    }
+  }
+
+  // Enforce minimum speed so bubbles never stop drifting
+  for (const b of state.bubbles) {
+    if (b.popping) continue;
+    const spd = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    const minSpd = levelSpeed * 0.4;
+    if (spd < minSpd) {
+      const angle = Math.atan2(b.vy, b.vx) || (Math.random() * Math.PI * 2);
+      b.vx = Math.cos(angle) * minSpd;
+      b.vy = Math.sin(angle) * minSpd;
+    }
+    // Cap max speed
+    const maxSpd = levelSpeed * 2.5;
+    if (spd > maxSpd) {
+      b.vx = (b.vx / spd) * maxSpd;
+      b.vy = (b.vy / spd) * maxSpd;
+    }
+  }
+}
+
+// ============================================================
+// RENDERING (DOM sync)
+// ============================================================
+// Map of bubble id → DOM element, so the 60fps loop never has to
+// query the DOM. Elements are created once and moved via transform.
+const bubbleEls = new Map();
+
+function clearBoard() {
+  const container = document.getElementById('board-container');
+  if (container) container.innerHTML = '';
+  bubbleEls.clear();
+}
+
+function renderBubbles() {
+  const container = document.getElementById('board-container');
+  if (!container) return;
+
+  const activeIds = new Set();
+
+  for (const b of state.bubbles) {
+    activeIds.add(b.id);
+    let el = bubbleEls.get(b.id);
+
+    if (!el) {
+      // Create new DOM element (once per bubble)
+      el = document.createElement('div');
+      el.className = `bubble ${b.num % 2 === 0 ? 'even' : 'odd'}`;
+      el.dataset.id = b.id;
+      el.style.width = b.size + 'px';
+      el.style.height = b.size + 'px';
+      el.style.fontSize = Math.max(b.size * 0.28, 12) + 'px';
+      el.textContent = b.num; // set once — the number never changes
+      el.addEventListener('click', () => selectBubble(b.id));
+      container.appendChild(el);
+      bubbleEls.set(b.id, el);
+      if (b.appearing) {
+        el.classList.add('appear-anim');
+        setTimeout(() => { el.classList.remove('appear-anim'); b.appearing = false; }, 450);
+      }
+    }
+
+    // Update position via CSS vars → transform (GPU-composited, no layout)
+    el.style.setProperty('--bx', b.x + 'px');
+    el.style.setProperty('--by', b.y + 'px');
+
+    // Selected state
+    el.classList.toggle('selected', state.selectedIds.includes(b.id));
+  }
+
+  // Remove DOM elements for bubbles that no longer exist
+  for (const [id, el] of bubbleEls) {
+    if (!activeIds.has(id)) {
+      el.remove();
+      bubbleEls.delete(id);
+    }
+  }
+}
+
+// ============================================================
+// ANIMATION LOOP
+// ============================================================
+function gameLoop() {
+  if (!state.paused) {
+    updatePhysics();
+    renderBubbles();
+  }
+  state.animFrameId = requestAnimationFrame(gameLoop);
+}
+
+function stopGameLoop() {
+  if (state.animFrameId) {
+    cancelAnimationFrame(state.animFrameId);
+    state.animFrameId = null;
+  }
+}
+
+function startGameLoop() {
+  if (!state.animFrameId) {
+    state.animFrameId = requestAnimationFrame(gameLoop);
+  }
+}
+
+function updateHeader() {
+  document.getElementById('level-display').textContent = state.level;
+  document.getElementById('score-display').textContent = state.score;
+  document.getElementById('target-display').textContent = state.targetScore;
+  document.getElementById('maxprime-display').innerHTML = getMaxAchievablePrime() + ' <span style="font-size:0.6rem; margin-left:4px; opacity:0.7;">▼</span>';
+  const pct = Math.min((state.score / state.targetScore) * 100, 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  renderLives();
+}
+
+function renderLives() {
+  const bar = document.getElementById('lives-bar');
+  let html = '<span class="lives-label">Lives</span>';
+  for (let i = 0; i < MAX_LIVES; i++) {
+    if (i < state.lives) {
+      html += `<span class="heart-life">${SVG_HEART}</span>`;
+    } else {
+      html += `<span class="heart-life lost">${SVG_HEART_EMPTY}</span>`;
+    }
+  }
+  bar.innerHTML = html;
+}
+
+let _gameOverScheduled = false;
+
+function loseLife() {
+  if (state.lives <= 0) return; // Already at zero, don't go negative
+  state.lives--;
+  // Animate the heart that just broke
+  const hearts = document.querySelectorAll('.heart-life:not(.lost)');
+  const lastHeart = hearts[hearts.length - 1];
+  if (lastHeart) {
+    lastHeart.classList.add('breaking');
+    setTimeout(() => {
+      lastHeart.classList.remove('breaking');
+      lastHeart.classList.add('lost');
+    }, 500);
+  }
+  saveProgress();
+  if (state.lives <= 0 && !_gameOverScheduled) {
+    _gameOverScheduled = true;
+    setTimeout(() => gameOver(), 600);
+  }
+}
+
+function gameOver() {
+  _gameOverScheduled = false;
+  stopGameLoop();
+  gameOverCount++;
+  document.getElementById('gameover-score').textContent = state.totalScore;
+  document.getElementById('gameover-level').textContent = state.level;
+
+  // Broken-hearts header (custom SVG icons)
+  const heartsHeader = document.getElementById('gameover-hearts');
+  if (heartsHeader) heartsHeader.innerHTML = SVG_HEART + SVG_HEART_EMPTY + SVG_HEART;
+
+  // Configure "Refill Lives" button — discounted for paid users.
+  // Prices come from the store (localized), with USD fallbacks.
+  const buyLivesBtn = document.getElementById('buy-lives-btn');
+  const livesPrice = state.purchased ? localizedPrices.livesPaid : localizedPrices.livesFree;
+  buyLivesBtn.innerHTML = `${SVG_HEART} Refill Lives — ${livesPrice}`;
+
+  // Configure "Watch Ad" button — hidden for paid users (they're ad-free)
+  const adLifeBtn = document.getElementById('ad-pin-btn');
+  if (state.purchased) {
+    adLifeBtn.style.display = 'none';
+  } else {
+    adLifeBtn.style.display = 'block';
+    adLifeBtn.innerHTML = SVG_BUBBLE + ' ' + getAdLifeMessage();
+  }
+
+  showOverlay('gameover-overlay');
+}
+
+function restartFullGame() {
+  hideOverlay('gameover-overlay');
+  _gameOverScheduled = false;
+  state.level = 1;
+  state.score = 0;
+  state.totalScore = 0;
+  state.lives = MAX_LIVES;
+  saveProgress();
+  initLevel();
+}
+
+async function watchAdForPin() {
+  const adBtn = document.getElementById('ad-pin-btn');
+  if (adBtn) adBtn.disabled = true;
+  const reward = await showRewardedAd();
+  if (adBtn) adBtn.disabled = false;
+
+  if (reward === 'unavailable') {
+    // No ad loaded (offline / no fill) — no free life, but don't punish
+    showToast('No ad available right now — try again in a moment.');
+    return;
+  }
+  if (reward) {
+    // User completed the ad (or we're in browser/test mode)
+    _gameOverScheduled = false;
+    state.lives = Math.min(state.lives + 1, MAX_LIVES);
+    saveProgress();
+    hideOverlay('gameover-overlay');
+    renderLives();
+    showToast('+1 Life! Keep popping!');
+    startGameLoop();
+  } else {
+    // User dismissed the ad without finishing
+    showToast('Watch the full ad to earn a life!');
+  }
+}
+
+async function buyLivesPack() {
+  const productId = state.purchased ? IAP_LIVES_PAID_ID : IAP_LIVES_FREE_ID;
+  const price = state.purchased ? localizedPrices.livesPaid : localizedPrices.livesFree;
+
+  // Native platform: real IAP
+  if (iapReady && iapStore) {
+    const buyBtn = document.getElementById('buy-lives-btn');
+    buyBtn.textContent = 'Processing...';
+    buyBtn.disabled = true;
+
+    try {
+      const product = iapStore.get(productId);
+      if (!product) throw new Error('Lives product not found in store');
+
+      const offer = product.getOffer();
+      if (!offer) throw new Error('No offer available');
+
+      await iapStore.order(offer);
+      // Delivery handled by the .approved listener — onLivesGranted() will fire
+
+    } catch (e) {
+      console.log('[IAP] Lives purchase failed:', e.message);
+      showToast('Purchase cancelled or failed. Try again!');
+    } finally {
+      buyBtn.innerHTML = `${SVG_HEART} Refill Lives — ${price}`;
+      buyBtn.disabled = false;
+    }
+    return;
+  }
+
+  // Browser fallback: simulated purchase
+  if (confirm(`SIMULATED PURCHASE (browser testing only)\n\nRefill your lives for ${price}?`)) {
+    onLivesGranted();
+  }
+}
+
+function onLivesGranted() {
+  _gameOverScheduled = false;
+  state.lives = MAX_LIVES; // full refill
+  saveProgress();
+  hideOverlay('gameover-overlay');
+  renderLives();
+  showToast('Lives refilled! You\'re back in the game!');
+  // Restart the game loop so the game resumes after buying lives
+  startGameLoop();
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+function getMaxSelectable() {
+  return state.level > 10 ? 3 : 2;
+}
+
+function showHint() {
+  // Find a valid pair that makes a prime
+  for (let i = 0; i < state.bubbles.length; i++) {
+    for (let j = i + 1; j < state.bubbles.length; j++) {
+      const n1 = state.bubbles[i].num;
+      const n2 = state.bubbles[j].num;
+      const sum = n1 + n2;
+      const diff = Math.abs(n1 - n2);
+      if (isPrime(sum) || isPrime(diff)) {
+        // Highlight these two bubbles with hint-pulse animation
+        const el1 = document.querySelector(`.bubble[data-id="${state.bubbles[i].id}"]`);
+        const el2 = document.querySelector(`.bubble[data-id="${state.bubbles[j].id}"]`);
+        if (el1) el1.classList.add('hint-pulse');
+        if (el2) el2.classList.add('hint-pulse');
+        // Remove hint after animation completes
+        setTimeout(() => {
+          if (el1) el1.classList.remove('hint-pulse');
+          if (el2) el2.classList.remove('hint-pulse');
+        }, 4000);
+        return;
+      }
+    }
+  }
+}
+
+function selectBubble(id) {
+  // Don't process clicks if we're not on the game screen
+  if (!document.getElementById('game-screen').classList.contains('active')) return;
+
+  // Clear hint timer on any bubble selection
+  if (hintTimeout) {
+    clearTimeout(hintTimeout);
+    hintTimeout = null;
+    // Remove any hint-pulse classes
+    document.querySelectorAll('.hint-pulse').forEach(el => el.classList.remove('hint-pulse'));
+  }
+
+  // Brief cooldown only after a WRONG pair (pacing/punish) — successful
+  // pops no longer block input, so fast players can chain pops.
+  if (state.isAnimating) return;
+
+  // Ignore taps on bubbles that are mid-pop
+  const tapped = state.bubbles.find(b => b.id === id);
+  if (!tapped || tapped.popping) return;
+
+  const idx = state.selectedIds.indexOf(id);
+  if (idx !== -1) {
+    state.selectedIds.splice(idx, 1);
+    return;
+  }
+
+  const maxSel = getMaxSelectable();
+  state.selectedIds.push(id);
+
+  // At 2 selected: always try to process (works for both 2-mode and 3-mode)
+  // At 3 selected: process if in 3-bubble mode
+  if (state.selectedIds.length >= 2) {
+    // In 3-bubble mode, if they have 2 selected, wait a beat to see if they pick a 3rd
+    if (maxSel === 3 && state.selectedIds.length === 2) {
+      // Try 2-bubble combo immediately — if it works, pop them
+      // If not, let them pick a 3rd
+      const combo2 = findPrimeCombo2(state.selectedIds);
+      if (combo2) {
+        processResult(combo2.ids, combo2.result, combo2.label);
+      }
+      // Otherwise wait for 3rd pick or they can deselect
+      return;
+    }
+    if (state.selectedIds.length === 2 && maxSel === 2) {
+      processSelection2();
+    } else if (state.selectedIds.length === 3) {
+      processSelection3();
+    }
+  }
+}
+
+// === 2-bubble combo check ===
+function findPrimeCombo2(ids) {
+  const b1 = state.bubbles.find(b => b.id === ids[0]);
+  const b2 = state.bubbles.find(b => b.id === ids[1]);
+  if (!b1 || !b2) return null;
+  const n1 = b1.num, n2 = b2.num;
+  const sum = n1 + n2;
+  const diff = Math.abs(n1 - n2);
+  if (isPrime(sum)) return { ids: [ids[0], ids[1]], result: sum, label: `${n1} + ${n2} = ${sum} Prime!` };
+  if (isPrime(diff)) return { ids: [ids[0], ids[1]], result: diff, label: `${Math.max(n1,n2)} − ${Math.min(n1,n2)} = ${diff} Prime!` };
+  return null;
+}
+
+function processSelection2() {
+  const combo = findPrimeCombo2(state.selectedIds);
+  if (combo) {
+    processResult(combo.ids, combo.result, combo.label);
+  } else {
+    processFail(state.selectedIds);
+  }
+}
+
+// === 3-bubble combo check: try all +/- combinations of 3 numbers ===
+function findPrimeCombo3(ids) {
+  const bs = ids.map(id => state.bubbles.find(b => b.id === id));
+  if (bs.some(b => !b)) return null;
+  const nums = bs.map(b => b.num);
+  const [a, b, c] = nums;
+
+  // All 8 sign combinations: ±a ±b ±c
+  // We try all that produce a positive result
+  const combos = [
+    { val: a + b + c, label: `${a} + ${b} + ${c}` },
+    { val: a + b - c, label: `${a} + ${b} − ${c}` },
+    { val: a - b + c, label: `${a} − ${b} + ${c}` },
+    { val: a - b - c, label: `${a} − ${b} − ${c}` },
+    { val: -a + b + c, label: `${b} + ${c} − ${a}` },
+    { val: -a + b - c, label: `${b} − ${a} − ${c}` },
+    { val: -a - b + c, label: `${c} − ${a} − ${b}` },
+  ];
+
+  // Pick the best prime (highest value for more points)
+  let best = null;
+  for (const combo of combos) {
+    const v = Math.abs(combo.val);
+    if (v >= 2 && isPrime(v)) {
+      if (!best || v > best.result) {
+        best = { ids, result: v, label: `${combo.label} = ${v} Prime!` };
+      }
+    }
+  }
+  return best;
+}
+
+function processSelection3() {
+  // Try 3-bubble combo first
+  const combo3 = findPrimeCombo3(state.selectedIds);
+  if (combo3) {
+    processResult(combo3.ids, combo3.result, combo3.label);
+    return;
+  }
+  // If no 3-bubble combo, fail
+  processFail(state.selectedIds);
+}
+
+// === Shared success/fail handlers ===
+function processResult(ids, result, label) {
+  showResultDisplay(label, true);
+  playSound('pop');
+
+  state.score += result;
+  state.totalScore += result;
+  updateHeader();
+
+  // Free the selection IMMEDIATELY — the player can start picking the
+  // next combo while the pop animation plays out (no input lag).
+  state.selectedIds = state.selectedIds.filter(sid => !ids.includes(sid));
+
+  const selectedBubbles = ids.map(id => state.bubbles.find(b => b.id === id)).filter(Boolean);
+  const selectedEls = ids.map(id => document.querySelector(`.bubble[data-id="${id}"]`));
+  selectedBubbles.forEach(b => { b.popping = true; });
+
+  // Stagger pops slightly for multi-bubble selections
+  selectedEls.forEach((el, i) => {
+    if (!el) return;
+    setTimeout(() => {
+      el.classList.add('pop-anim');
+      spawnParticles(el);
+    }, i * 80);
+  });
+
+  // Level-complete check happens right away (not after the animation)
+  if (state.score >= state.targetScore && !state._levelCompleting) {
+    state._levelCompleting = true;
+    setTimeout(() => levelComplete(), 600);
+  }
+
+  const totalAnimTime = 500 + (selectedEls.length - 1) * 80;
+  setTimeout(() => {
+    const speed = getLevelConfig(state.level).speed;
+    const parities = selectedBubbles.map(b => b.num % 2 === 0 ? 'even' : 'odd');
+
+    state.bubbles = state.bubbles.filter(b => !ids.includes(b.id));
+    parities.forEach(p => {
+      const newBubble = createBubble(state.maxNumber, p, speed);
+      if (newBubble) state.bubbles.push(newBubble);
+    });
+  }, totalAnimTime);
+}
+
+function processFail(ids) {
+  state.isAnimating = true; // short cooldown so mis-taps don't chain-drain lives
+  showResultDisplay('No Prime!', false);
+  playSound('buzz');
+
+  // Lose a life on wrong answer
+  loseLife();
+
+  const els = ids.map(id => document.querySelector(`.bubble[data-id="${id}"]`));
+  els.forEach(el => { if (el) el.classList.add('flash-red'); });
+
+  setTimeout(() => {
+    els.forEach(el => { if (el) el.classList.remove('flash-red'); });
+    state.selectedIds = [];
+    state.isAnimating = false;
+  }, 500);
+}
+
+// ============================================================
+// LEVEL MANAGEMENT
+// ============================================================
+function levelComplete() {
+  state.paused = true; // stop physics while the overlay is up (saves battery)
+  showOverlay('level-up-overlay');
+  spawnConfetti();
+  playSound('levelup');
+  updateAllTimeScore(state.totalScore);
+
+  // Track completed levels (used to time the rating prompt)
+  try {
+    const wins = parseInt(storeGet('primepop_levelwins') || '0', 10) + 1;
+    storeSet('primepop_levelwins', String(wins));
+  } catch (e) {}
+
+  // Bonus life every LIFE_BONUS_EVERY levels (capped at MAX_LIVES)
+  let bonusLife = false;
+  if (state.level % LIFE_BONUS_EVERY === 0 && state.lives < MAX_LIVES) {
+    state.lives++;
+    bonusLife = true;
+  }
+
+  // Calculate time and stars
+  const elapsedSeconds = (Date.now() - state.levelStartTime) / 1000;
+  const stars = getStarRating(elapsedSeconds, state.level);
+  saveLevelStars(state.level, stars);
+  const bestStars = getBestStars(state.level);
+
+  document.getElementById('levelup-title').textContent = `Level ${state.level} Complete!`;
+  document.getElementById('levelup-text').textContent = `Score: ${state.score}/${state.targetScore}`;
+
+  // Display star animation — dramatic fly-in with sparkle
+  const starsEl = document.getElementById('levelup-stars');
+  starsEl.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const span = document.createElement('span');
+    span.className = 'star-slot empty';
+    span.textContent = '★';
+    starsEl.appendChild(span);
+  }
+
+  // Animate stars filling in one at a time with delay
+  setTimeout(() => {
+    const slots = starsEl.querySelectorAll('.star-slot');
+    for (let i = 0; i < stars; i++) {
+      setTimeout(() => {
+        slots[i].classList.remove('empty');
+        slots[i].classList.add('filling');
+        // After fly-in animation, switch to sparkle
+        setTimeout(() => {
+          slots[i].classList.remove('filling');
+          slots[i].classList.add('filled');
+        }, 700);
+      }, i * 600); // 600ms between each star
+    }
+  }, 800);
+
+  // Show time and best
+  document.getElementById('levelup-time').textContent = `Time: ${Math.round(elapsedSeconds)}s`;
+  if (bestStars > 0 && bestStars !== stars) {
+    const bestStr = '★'.repeat(bestStars) + '☆'.repeat(3 - bestStars);
+    document.getElementById('levelup-best').innerHTML = `Best: <span style="color:var(--gold);">${bestStr}</span>`;
+  } else if (bestStars === stars && stars === 3) {
+    document.getElementById('levelup-best').textContent = '★★★ Perfect! ★★★';
+  } else {
+    document.getElementById('levelup-best').textContent = '';
+  }
+
+  // Show remaining lives on level complete
+  document.getElementById('levelup-pins').innerHTML =
+    heartsHTML(state.lives, MAX_LIVES) +
+    (bonusLife ? ' <strong style="color:#4CAF50;">+1 Life earned!</strong>' : ' remaining');
+  saveProgress();
+}
+
+function goToNextRoundScreen() {
+  hideOverlay('level-up-overlay');
+
+  // Check for purchase wall
+  if (state.level >= 8 && !state.purchased) {
+    stopGameLoop();
+    showScreen('purchase-screen');
+    return;
+  }
+
+  // Advance level
+  state.level++;
+
+  // Show 3-bubble unlock splash when entering level 11
+  if (state.level === 11 && !hasSeenThreeBubbleSplash) {
+    hasSeenThreeBubbleSplash = true;
+    showOverlay('splash-3bubble');
+    state._pendingLevelStart = true;
+    return;
+  }
+
+  // Show interstitial ad at levels 5, 8, 10, then every round from 12+
+  if (shouldShowInterstitial(state.level)) {
+    showInterstitialAd().then(() => showNextRoundScreen()).catch(() => showNextRoundScreen());
+  } else {
+    showNextRoundScreen();
+  }
+}
+
+function showNextRoundScreen() {
+  const config = getLevelConfig(state.level);
+  const nextPrime = getMaxPrimeForLevel(state.level);
+
+  document.getElementById('nextround-title').textContent = `Round ${state.level}`;
+  document.getElementById('nextround-info').innerHTML =
+    `Primes up to <strong style="color:#ffd700;">${nextPrime}</strong> · ` +
+    `${config.numBubbles} bubbles · ` +
+    `Target: ${config.targetScore}`;
+
+  // Show lives
+  document.getElementById('nextround-pins').innerHTML = heartsHTML(state.lives, MAX_LIVES);
+
+  // Show "Skip Ads" upsell between rounds from level 5+ (free users only)
+  const upsellBtn = document.getElementById('nextround-upsell-btn');
+  const showUpsell = !state.purchased && state.level >= UPSELL_FROM_LEVEL;
+  upsellBtn.style.display = showUpsell ? 'block' : 'none';
+  if (showUpsell) upsellBtn.textContent = `Skip Ads — ${localizedPrices.adfree}`;
+
+  showOverlay('next-round-overlay');
+
+  // Happy moment, natural pause → gently ask for a rating (once)
+  maybeShowRatePrompt();
+}
+
+function startNextRound() {
+  hideOverlay('next-round-overlay');
+  initLevel();
+}
+
+// Legacy function name kept for 3-bubble splash flow
+function nextLevel() {
+  goToNextRoundScreen();
+}
+
+let hintTimeout = null;
+function initLevel() {
+  state._levelCompleting = false; // Reset level-complete guard
+  const config = getLevelConfig(state.level);
+  state.numBubbles = config.numBubbles;
+  state.maxNumber = config.maxNumber;
+  state.maxPrime = config.maxPrime;
+  state.targetScore = config.targetScore;
+  state.score = 0;
+  state.selectedIds = [];
+  state.paused = false;
+  state.levelStartTime = Date.now();
+
+  // Clear any existing hint timeout
+  if (hintTimeout) clearTimeout(hintTimeout);
+
+  // Reset number pools and clear board
+  _evenPool = [];
+  _oddPool = [];
+  clearBoard();
+
+  // Show gameplay banner if applicable
+  showGameplayBanner();
+
+  // Need a frame for container dimensions to be available
+  requestAnimationFrame(() => {
+    state.bubbles = generateBubbles(state.numBubbles, state.maxNumber, config.speed);
+    updateHeader();
+    stopGameLoop();
+    startGameLoop();
+
+    // Start hint timer for levels 1-2
+    if (state.level <= 2) {
+      hintTimeout = setTimeout(() => {
+        if (!state.paused && state.selectedIds.length === 0 && state.bubbles.length > 1) {
+          showHint();
+        }
+      }, 4000);
+    }
+  });
+}
+
+// ============================================================
+// SCREENS & OVERLAYS
+// ============================================================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (!el) { console.error('[UI] Screen not found:', id); return; }
+  el.classList.add('active');
+  // Hide banner when leaving game screen
+  if (id !== 'game-screen') {
+    hideGameplayBanner();
+  }
+  // Keep purchase UI in sync whenever settings or purchase screen is shown
+  if (id === 'settings-screen' || id === 'purchase-screen') {
+    updatePurchaseUI();
+  }
+}
+function showOverlay(id) { const el = document.getElementById(id); if (el) el.classList.add('active'); }
+function hideOverlay(id) { const el = document.getElementById(id); if (el) el.classList.remove('active'); }
+
+// In-game confirm dialog — replaces the browser's confirm() popups,
+// which look jarring inside a packaged app and can silently fail in
+// some WebView configurations.
+function showConfirm(title, text, yesLabel, onYes) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-text').textContent = text;
+  const yesBtn = document.getElementById('confirm-yes');
+  yesBtn.textContent = yesLabel || 'Yes';
+  yesBtn.onclick = () => { hideOverlay('confirm-overlay'); if (onYes) onYes(); };
+  document.getElementById('confirm-no').onclick = () => hideOverlay('confirm-overlay');
+  showOverlay('confirm-overlay');
+}
+
+let hasSeenTutorial = false;
+let hasSeenThreeBubbleSplash = false;
+let audioContextResumed = false;
+let audioUnlocked = false;
+
+// iOS audio unlock — must run synchronously inside a user gesture handler
+function unlockAudio() {
+  if (audioUnlocked) return;
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return; // Audio unavailable
+    console.log('[Audio] Attempting unlock, state before:', ctx.state);
+
+    // Resume if suspended — call it regardless
+    const resumePromise = ctx.resume();
+    if (resumePromise && resumePromise.then) {
+      resumePromise.then(() => {
+        console.log('[Audio] Resume promise resolved, state:', ctx.state);
+      }).catch(e => {
+        console.log('[Audio] Resume promise rejected:', e);
+      });
+    }
+
+    // Play a silent buffer to fully unlock iOS audio
+    const silentBuffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const source = ctx.createBufferSource();
+    source.buffer = silentBuffer;
+    source.connect(ctx.destination);
+    source.start(0);
+
+    // Also play a very short audible tone to force the audio pipeline open
+    const osc = ctx.createOscillator();
+    const toneGain = ctx.createGain();
+    toneGain.gain.setValueAtTime(0.001, ctx.currentTime); // nearly silent
+    toneGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.1);
+    osc.connect(toneGain);
+    toneGain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.1);
+
+    audioUnlocked = true;
+    audioContextResumed = true;
+    console.log('[Audio] Unlocked, state after:', ctx.state, 'sampleRate:', ctx.sampleRate, 'currentTime:', ctx.currentTime);
+  } catch (e) {
+    console.log('[Audio] Unlock error:', e);
+  }
+}
+
+// Keep trying to unlock — iOS sometimes needs multiple attempts
+let _audioRetryCount = 0;
+function retryAudioUnlock() {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  if (audioUnlocked && ctx.state === 'running') return;
+  _audioRetryCount++;
+  if (_audioRetryCount > 10) return;
+  console.log('[Audio] Retry unlock attempt', _audioRetryCount, 'state:', ctx.state);
+  audioUnlocked = false; // force re-attempt
+  unlockAudio();
+  // If music should be playing but isn't, restart it
+  if (musicEnabled && !bgMusicPlaying) {
+    console.log('[Audio] Restarting music after retry');
+    startBgMusic();
+  }
+}
+
+// ========== BANNER AD FUNCTIONS ==========
+let _bannerShowing = false;
+
+async function showGameplayBanner() {
+  // Only on ad levels, never for paid users — and never show the
+  // empty placeholder unless a real banner is actually requested.
+  if (!shouldShowBannerAd(state.level)) { hideGameplayBanner(); return; }
+
+  const AdMob = getAdMobPlugin();
+  const canShowReal = AdMob && admobReady;
+
+  const banner = document.getElementById('gameplay-banner');
+  if (banner) {
+    banner.style.display = canShowReal ? 'flex' : 'none';
+  }
+  const boardContainer = document.getElementById('board-container');
+  if (boardContainer) {
+    boardContainer.classList.toggle('with-banner', !!canShowReal);
+  }
+
+  if (canShowReal) {
+    try {
+      const platform = Capacitor.getPlatform();
+      await AdMob.showBanner({
+        adId: AD_IDS.banner[platform] || AD_IDS.banner.android,
+        adSize: 'BANNER',
+        position: 'BOTTOM_CENTER',
+        margin: 0,
+      });
+      _bannerShowing = true;
+    } catch (e) {
+      console.log('[Ads] Banner show failed:', e.message);
+      // Ad failed — collapse the reserved space so the board isn't cramped
+      if (banner) banner.style.display = 'none';
+      if (boardContainer) boardContainer.classList.remove('with-banner');
+    }
+  }
+}
+
+async function hideGameplayBanner() {
+  const banner = document.getElementById('gameplay-banner');
+  if (banner) {
+    banner.style.display = 'none';
+  }
+  const boardContainer = document.getElementById('board-container');
+  if (boardContainer) {
+    boardContainer.classList.remove('with-banner');
+  }
+
+  if (_bannerShowing) {
+    const AdMob = getAdMobPlugin();
+    if (AdMob) {
+      try { await AdMob.removeBanner(); } catch (e) {}
+    }
+    _bannerShowing = false;
+  }
+}
+
+function dismissSplash(id) {
+  hideOverlay(id);
+  // If game was waiting for splash dismissal, start the level now
+  if (state._pendingLevelStart) {
+    state._pendingLevelStart = false;
+    // For the 3-bubble splash (level 11), show next round screen
+    // For the tutorial splash (level 1), go straight to playing
+    if (id === 'splash-3bubble') {
+      showNextRoundScreen();
+    } else {
+      initLevel();
+    }
+  }
+}
+
+// ========== INTERACTIVE TUTORIAL ==========
+let tutorialStep = 0;
+let tutorialBubbles = [];
+
+const TUTORIAL_STEPS = [
+  {
+    text: "Welcome to PrimePop! Tap the <strong style=\"color:#ffd700;\">3</strong> bubble!",
+    targetBubbleNum: 3,
+    instruction: "tap"
+  },
+  {
+    text: "Great! Now tap the <strong style=\"color:#ffd700;\">2</strong> bubble!",
+    targetBubbleNum: 2,
+    instruction: "tap"
+  },
+  {
+    text: "3 + 2 = 5 — That's a prime number! 🎉",
+    targetBubbleNum: null,
+    instruction: "wait",
+    duration: 2000
+  },
+  {
+    text: "New bubbles appeared! Now try subtraction. Tap the <strong style=\"color:#ffd700;\">5</strong> bubble!",
+    targetBubbleNum: 5,
+    instruction: "tap"
+  },
+  {
+    text: "Now tap the <strong style=\"color:#ffd700;\">2</strong> bubble!",
+    targetBubbleNum: 2,
+    instruction: "tap"
+  },
+  {
+    text: "5 − 2 = 3 — Prime! 🎉",
+    targetBubbleNum: null,
+    instruction: "wait",
+    duration: 2000
+  },
+  {
+    text: "You've got it! Pop bubbles to hit the target score. Wrong pairs cost a life. Good luck!",
+    targetBubbleNum: null,
+    instruction: "start",
+    button: "Start Playing!"
+  }
+];
+
+function showTutorial() {
+  tutorialStep = 0;
+  tutorialBubbles = [];
+  createTutorialBoard();
+  updateTutorialDisplay();
+  showOverlay('tutorial-overlay');
+}
+
+function createTutorialBoard() {
+  const board = document.getElementById('tutorial-board');
+  board.innerHTML = '';
+
+  // Create tutorial bubbles with numbers 2, 3, 4, 5
+  const nums = [2, 3, 4, 5];
+  tutorialBubbles = nums.map((num, i) => ({
+    num,
+    id: 'tut-' + i,
+    selected: false,
+    x: 8 + i * 23,
+    y: 35
+  }));
+
+  tutorialBubbles.forEach((b, i) => {
+    const bubbleEl = document.createElement('div');
+    bubbleEl.id = b.id;
+    bubbleEl.className = `bubble ${b.num % 2 === 0 ? 'even' : 'odd'}`;
+    bubbleEl.style.cssText = `
+      position: absolute; width: 64px; height: 64px;
+      left: ${b.x}%; top: ${b.y}%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 24px; cursor: pointer;
+      transition: transform 0.15s;
+    `;
+    bubbleEl.textContent = b.num;
+    bubbleEl.classList.add('tutorial-bubble-float');
+    bubbleEl.style.animationDelay = (i * 0.5) + 's';
+    bubbleEl.onclick = (e) => tutorialBubbleClick(b.id, e);
+    board.appendChild(bubbleEl);
+  });
+}
+
+function tutorialBubbleClick(id, e) {
+  e.stopPropagation();
+  const step = TUTORIAL_STEPS[tutorialStep];
+  if (step.instruction !== 'tap') return;
+
+  const bubble = tutorialBubbles.find(b => b.id === id);
+  if (!bubble) return;
+
+  const el = document.getElementById(id);
+  if (step.targetBubbleNum === bubble.num || tutorialStep > 1) {
+    // Glow the selected bubble
+    bubble.selected = true;
+    el.classList.add('selected');
+    el.style.transform = 'scale(1.08)';
+
+    // Move to next step
+    setTimeout(() => {
+      tutorialStep++;
+      if (tutorialStep < TUTORIAL_STEPS.length) {
+        const nextStep = TUTORIAL_STEPS[tutorialStep];
+        if (nextStep.instruction === 'wait') {
+          // Pop the selected bubbles
+          tutorialBubbles.filter(b => b.selected).forEach(b => {
+            const bEl = document.getElementById(b.id);
+            if (bEl) bEl.classList.add('pop-anim');
+          });
+          // Show equation in the board — short version only (e.g. "3 + 2 = 5")
+          const board = document.getElementById('tutorial-board');
+          const eqDiv = document.createElement('div');
+          // Extract just the equation part (before the em-dash)
+          const eqText = nextStep.text.split('—')[0].trim();
+          eqDiv.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;z-index:10;font-size:1.8rem;font-weight:900;color:var(--gold);text-shadow:0 2px 12px rgba(0,0,0,0.5);pointer-events:none;background:rgba(0,0,0,0.3);border-radius:16px;animation:tutorialEquation 1s ease forwards;';
+          eqDiv.textContent = eqText;
+          board.appendChild(eqDiv);
+          // Update the text below
+          document.getElementById('tutorial-text').innerHTML = nextStep.text;
+          // After wait, advance and rebuild
+          setTimeout(() => {
+            tutorialStep++;
+            if (tutorialStep < TUTORIAL_STEPS.length) {
+              // Set new numbers for subtraction phase
+              if (tutorialStep === 3) {
+                // After addition, create board with 2, 4, 5, 1 for subtraction
+                tutorialBubbles = [
+                  { num: 2, id: 'tut-0', selected: false, x: 8, y: 35 },
+                  { num: 4, id: 'tut-1', selected: false, x: 31, y: 35 },
+                  { num: 5, id: 'tut-2', selected: false, x: 54, y: 35 },
+                  { num: 1, id: 'tut-3', selected: false, x: 77, y: 35 },
+                ];
+              }
+              createTutorialBoard();
+              updateTutorialDisplay();
+            } else {
+              updateTutorialDisplay();
+            }
+          }, nextStep.duration);
+        } else if (nextStep.instruction === 'start') {
+          updateTutorialDisplay();
+        } else {
+          createTutorialBoard();
+          updateTutorialDisplay();
+        }
+      } else {
+        updateTutorialDisplay();
+      }
+    }, 400);
+  }
+}
+
+function updateTutorialDisplay() {
+  if (tutorialStep >= TUTORIAL_STEPS.length) {
+    // Tutorial complete
+    const hideCheckbox = document.getElementById('hide-tutorial-checkbox');
+    if (hideCheckbox && hideCheckbox.checked) {
+      storeSet('primepop_hideTutorial', 'true');
+    }
+    dismissSplash('tutorial-overlay');
+    return;
+  }
+
+  const step = TUTORIAL_STEPS[tutorialStep];
+  document.getElementById('tutorial-text').innerHTML = step.text;
+  document.getElementById('tutorial-title').textContent =
+    tutorialStep === 0 ? 'Welcome to PrimePop!' : '';
+
+  // Progress dots
+  const progress = document.getElementById('tutorial-progress');
+  progress.innerHTML = Array(TUTORIAL_STEPS.length).fill(0)
+    .map((_, i) => `<span style="
+      width: 8px; height: 8px; border-radius: 50%;
+      background: ${i < tutorialStep ? 'var(--gold)' : 'rgba(255,255,255,0.3)'};
+      transition: background 0.3s;
+    "></span>`)
+    .join('');
+
+  // Button
+  const btn = document.getElementById('tutorial-button');
+  if (step.instruction === 'start') {
+    btn.disabled = false;
+    btn.textContent = step.button;
+    btn.onclick = () => {
+      const hideCheckbox = document.getElementById('hide-tutorial-checkbox');
+      if (hideCheckbox && hideCheckbox.checked) {
+        storeSet('primepop_hideTutorial', 'true');
+      }
+      dismissSplash('tutorial-overlay');
+    };
+  } else if (step.instruction === 'tap') {
+    btn.textContent = 'Waiting...';
+    btn.disabled = true;
+  } else {
+    btn.textContent = 'Next';
+    btn.disabled = false;
+    btn.onclick = () => {
+      tutorialStep++;
+      updateTutorialDisplay();
+    };
+  }
+}
+
+function skipTutorial() {
+  const hideCheckbox = document.getElementById('hide-tutorial-checkbox');
+  if (hideCheckbox && hideCheckbox.checked) {
+    storeSet('primepop_hideTutorial', 'true');
+  }
+  dismissSplash('tutorial-overlay');
+}
+
+function startGame() {
+  // Check if tutorial was hidden
+  try {
+    if (storeGet('primepop_hideTutorial') === 'true') {
+      hasSeenTutorial = true;
+    }
+  } catch (e) {}
+
+  // Unlock audio synchronously in this tap handler
+  unlockAudio();
+
+  showScreen('game-screen');
+  if (!hasSeenTutorial) {
+    hasSeenTutorial = true;
+    showTutorial();
+    state._pendingLevelStart = true;
+  } else {
+    initLevel();
+  }
+  if (musicEnabled) startBgMusic();
+
+  // Schedule retry attempts in case first unlock didn't stick
+  setTimeout(retryAudioUnlock, 500);
+  setTimeout(retryAudioUnlock, 1500);
+  setTimeout(retryAudioUnlock, 3000);
+}
+function showPrimesList() {
+  const dropdown = document.getElementById('primes-dropdown');
+  if (dropdown.style.display === 'block') {
+    dropdown.style.display = 'none';
+    state.paused = false;
+    return;
+  }
+  const primesForRound = getAchievablePrimes();
+  dropdown.innerHTML = `
+    <p style="font-size:0.8rem; opacity:0.7; margin-bottom:10px; text-align:center;">Primes you can make this round</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">
+      ${primesForRound.map(p => `<span style="
+        display:inline-flex; align-items:center; justify-content:center;
+        width:42px; height:42px; border-radius:50%;
+        background:linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,184,0,0.15));
+        border:2px solid rgba(255,215,0,0.5);
+        color:#ffd700; font-weight:800; font-size:1rem;
+        box-shadow:0 2px 8px rgba(255,184,0,0.2);
+      ">${p}</span>`).join('')}
+    </div>
+  `;
+  dropdown.style.display = 'block';
+  state.paused = true;
+}
+
+function pauseGame() {
+  // Close primes dropdown if open
+  const dropdown = document.getElementById('primes-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+  state.paused = true;
+  hideGameplayBanner();
+  showOverlay('pause-overlay');
+}
+function resumeGame() {
+  state.paused = false;
+  showGameplayBanner();
+  hideOverlay('pause-overlay');
+  // Restart music if it was enabled but stopped (e.g. after navigating to settings)
+  if (musicEnabled && !bgMusicPlaying) {
+    unlockAudio();
+    startBgMusic();
+  }
+}
+function openSettingsFromPause() {
+  hideOverlay('pause-overlay');
+  state._returnToGame = true;
+  showScreen('settings-screen');
+}
+function settingsBack() {
+  if (state._returnToGame) {
+    state._returnToGame = false;
+    showScreen('game-screen');
+    showOverlay('pause-overlay');
+    // Re-unlock audio context in case iOS suspended it during screen switch
+    unlockAudio();
+  } else {
+    showScreen('title-screen');
+  }
+}
+function quitToTitle() {
+  // 1. Hide all overlays
+  try { hideOverlay('pause-overlay'); } catch(e) {}
+  try { hideOverlay('gameover-overlay'); } catch(e) {}
+  try { hideOverlay('level-up-overlay'); } catch(e) {}
+  try { hideGameplayBanner(); } catch(e) {}
+
+  // 2. Stop game loop and music
+  try { stopGameLoop(); } catch(e) {}
+  try { stopBgMusic(); } catch(e) {}
+
+  // 3. CRITICAL: Clear the board — remove all bubble DOM elements and their click listeners
+  try { clearBoard(); } catch(e) {}
+
+  // 4. Clear hint timer so it doesn't fire on the title screen
+  try {
+    if (hintTimeout) {
+      clearTimeout(hintTimeout);
+      hintTimeout = null;
+    }
+  } catch(e) {}
+
+  // 5. Reset game state
+  state.paused = false;
+  state.bubbles = [];
+  state.selectedIds = [];
+  state.isAnimating = false;
+  state._levelCompleting = false;
+  _gameOverScheduled = false;
+
+  // 6. SAVE progress when quitting so the player can resume later.
+  //    Exception: quitting after a game over ends the run for good —
+  //    the saved game is DELETED (otherwise quit+reload would be a
+  //    free "continue" that bypasses the lives system).
+  try {
+    if (state.lives <= 0) {
+      if (activeSlotIndex >= 0) {
+        const slots = getAllSlots();
+        if (activeSlotIndex < slots.length) {
+          slots.splice(activeSlotIndex, 1);
+          saveAllSlots(slots);
+        }
+      }
+    } else {
+      saveProgress();
+    }
+  } catch(e) {}
+  activeSlotIndex = -1;
+  state.currentSlot = null;
+
+  // 7. Rebuild save slots UI and switch to title screen
+  try { renderSaveSlots(); } catch(e) {}
+  showScreen('title-screen');
+}
+
+// ============================================================
+// RESULT DISPLAY
+// ============================================================
+function showResultDisplay(text, isPrimeResult) {
+  const el = document.getElementById('result-display');
+  el.textContent = text;
+  el.className = 'result-display';
+  void el.offsetWidth;
+  el.classList.add(isPrimeResult ? 'show-prime' : 'show-nope');
+}
+
+// ============================================================
+// PARTICLES & CONFETTI
+// ============================================================
+function spawnParticles(sourceEl) {
+  const rect = sourceEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const size = rect.width;
+
+  // 1) Expanding burst ring
+  const ring = document.createElement('div');
+  ring.className = 'pop-ring';
+  ring.style.left = cx + 'px';
+  ring.style.top = cy + 'px';
+  ring.style.width = size + 'px';
+  ring.style.height = size + 'px';
+  document.body.appendChild(ring);
+  setTimeout(() => ring.remove(), 550);
+
+  // 2) Second ring (slightly delayed, different color)
+  setTimeout(() => {
+    const ring2 = document.createElement('div');
+    ring2.className = 'pop-ring';
+    ring2.style.left = cx + 'px';
+    ring2.style.top = cy + 'px';
+    ring2.style.width = (size * 0.7) + 'px';
+    ring2.style.height = (size * 0.7) + 'px';
+    ring2.style.borderColor = 'rgba(255,107,157,0.7)';
+    document.body.appendChild(ring2);
+    setTimeout(() => ring2.remove(), 550);
+  }, 60);
+
+  // 3) Colored fragment particles
+  const colors = ['#ffd700', '#ff6b9d', '#a8edea', '#7dd3fc', '#ff9a9e', '#fecfef', '#fff'];
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
+    const pSize = 4 + Math.random() * 8;
+    p.style.width = pSize + 'px';
+    p.style.height = pSize + 'px';
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.borderRadius = Math.random() > 0.4 ? '50%' : '2px';
+    document.body.appendChild(p);
+    const angle = (Math.PI * 2 / 14) * i + (Math.random() - 0.5) * 0.5;
+    const dist = 30 + Math.random() * 80;
+    const duration = 400 + Math.random() * 300;
+    p.animate([
+      { transform: 'translate(0,0) scale(1)', opacity: 1 },
+      { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist + 20}px) scale(0)`, opacity: 0 }
+    ], { duration, easing: 'ease-out' });
+    setTimeout(() => p.remove(), duration);
+  }
+
+  // 4) Sparkle dots that shoot outward
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement('div');
+    s.className = 'pop-sparkle';
+    s.style.left = cx + 'px';
+    s.style.top = cy + 'px';
+    document.body.appendChild(s);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 50 + Math.random() * 50;
+    const duration = 300 + Math.random() * 200;
+    s.animate([
+      { transform: 'translate(-50%,-50%) scale(1.5)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px)) scale(0)`, opacity: 0 }
+    ], { duration, easing: 'ease-out' });
+    setTimeout(() => s.remove(), duration);
+  }
+}
+
+function spawnConfetti() {
+  // Gold and purple themed colors
+  const colors = ['#FFB800', '#FFD54F', '#7C22CE', '#9333EA'];
+  const shapes = ['circle', 'square', 'rect'];
+
+  // Screen flash effect
+  const flash = document.createElement('div');
+  flash.style.cssText = `
+    position: fixed; inset: 0; background: rgba(255,255,255,0.8);
+    z-index: 250; pointer-events: none;
+  `;
+  document.body.appendChild(flash);
+  flash.animate([
+    { opacity: 1 },
+    { opacity: 0 }
+  ], { duration: 300, easing: 'ease-out' });
+  setTimeout(() => flash.remove(), 300);
+
+  // "Level Complete!" text animation
+  const levelText = document.createElement('div');
+  levelText.textContent = 'Level Complete!';
+  levelText.style.cssText = `
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 3rem; font-weight: 900; color: var(--gold);
+    z-index: 251; pointer-events: none; white-space: nowrap;
+    text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+  document.body.appendChild(levelText);
+  levelText.animate([
+    { transform: 'translate(-50%, -80%) scale(0.5)', opacity: 0 },
+    { transform: 'translate(-50%, -50%) scale(1.2)', offset: 0.6 },
+    { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 }
+  ], { duration: 600, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+  setTimeout(() => levelText.remove(), 600);
+
+  // Enhanced confetti: 80 pieces with varied shapes and sizes
+  for (let i = 0; i < 80; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti-piece';
+    c.style.left = (Math.random() * 100) + 'vw';
+    c.style.top = '-20px';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    const size = 4 + Math.random() * 12;
+    c.style.width = size + 'px';
+    c.style.height = size + 'px';
+
+    if (shape === 'circle') {
+      c.style.borderRadius = '50%';
+    } else if (shape === 'square') {
+      c.style.borderRadius = '2px';
+    } else {
+      c.style.width = (12 + Math.random() * 20) + 'px';
+      c.style.height = (2 + Math.random() * 4) + 'px';
+      c.style.borderRadius = '1px';
+    }
+
+    document.body.appendChild(c);
+    const xDrift = (Math.random() - 0.5) * 250;
+    const duration = 1800 + Math.random() * 1500;
+    const delay = Math.random() * 500;
+    c.animate([
+      { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${xDrift}px, ${window.innerHeight+40}px) rotate(${360+Math.random()*720}deg)`, opacity: 0 }
+    ], { duration, delay, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' });
+    setTimeout(() => c.remove(), duration + delay);
+  }
+}
+
+// ============================================================
+// SOUND — Satisfying bubble wrap pop + background music
+// ============================================================
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {
+      console.warn('[Audio] AudioContext creation failed:', e.message);
+      return null;
+    }
+  }
+  return audioCtx;
+}
+
+// Pre-built noise buffer (reuse for performance)
+let _noiseBuffer = null;
+function getNoiseBuffer(ctx) {
+  if (_noiseBuffer && _noiseBuffer.sampleRate === ctx.sampleRate) return _noiseBuffer;
+  const sr = ctx.sampleRate;
+  const len = sr; // 1 second of noise
+  _noiseBuffer = ctx.createBuffer(1, len, sr);
+  const d = _noiseBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return _noiseBuffer;
+}
+
+function playSound(type) {
+  if (!state.sfx) return;
+  try {
+    const ctx = getAudioCtx();
+    if (!ctx) return; // Audio unavailable
+    unlockAudio();
+    const t = ctx.currentTime;
+
+    if (type === 'pop') {
+      // ===== Satisfying bubble wrap pop =====
+      // The key to a realistic bubble wrap sound is:
+      // 1) A very sharp initial transient (the membrane snapping)
+      // 2) A brief pressurized-air "puff" (mid-low frequencies)
+      // 3) A tiny crinkle tail (high filtered noise, short)
+      // Random variation makes each pop unique
+
+      const pitch = 0.9 + Math.random() * 0.2; // slight pitch variation
+
+      // Layer 1: Sharp transient snap — the membrane breaking
+      // Use a very short noise burst with a highpass to get that crisp "tick"
+      const snap = ctx.createBufferSource();
+      snap.buffer = getNoiseBuffer(ctx);
+      snap.playbackRate.value = 1.2 * pitch;
+      const snapHP = ctx.createBiquadFilter();
+      snapHP.type = 'highpass';
+      snapHP.frequency.value = 4000;
+      const snapBP = ctx.createBiquadFilter();
+      snapBP.type = 'peaking';
+      snapBP.frequency.value = 6000;
+      snapBP.gain.value = 8;
+      snapBP.Q.value = 2;
+      const snapGain = ctx.createGain();
+      snapGain.gain.setValueAtTime(0.7, t);
+      snapGain.gain.linearRampToValueAtTime(0.0, t + 0.012); // extremely short
+      snap.connect(snapHP);
+      snapHP.connect(snapBP);
+      snapBP.connect(snapGain);
+      snapGain.connect(ctx.destination);
+      snap.start(t);
+      snap.stop(t + 0.015);
+
+      // Layer 2: Air puff — the pressurized air escaping the bubble
+      const puff = ctx.createBufferSource();
+      puff.buffer = getNoiseBuffer(ctx);
+      const puffLP = ctx.createBiquadFilter();
+      puffLP.type = 'lowpass';
+      puffLP.frequency.setValueAtTime(2000 * pitch, t);
+      puffLP.frequency.exponentialRampToValueAtTime(300, t + 0.08);
+      const puffGain = ctx.createGain();
+      puffGain.gain.setValueAtTime(0.0, t);
+      puffGain.gain.linearRampToValueAtTime(0.45, t + 0.003); // tiny attack
+      puffGain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+      puff.connect(puffLP);
+      puffLP.connect(puffGain);
+      puffGain.connect(ctx.destination);
+      puff.start(t);
+      puff.stop(t + 0.1);
+
+      // Layer 3: Sub thump — the low-frequency body you feel
+      const sub = ctx.createOscillator();
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(180 * pitch, t);
+      sub.frequency.exponentialRampToValueAtTime(60, t + 0.06);
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.5, t);
+      subGain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      sub.connect(subGain);
+      subGain.connect(ctx.destination);
+      sub.start(t);
+      sub.stop(t + 0.08);
+
+      // Layer 4: Crinkle tail — the plastic settling after the pop
+      const crinkle = ctx.createBufferSource();
+      crinkle.buffer = getNoiseBuffer(ctx);
+      crinkle.playbackRate.value = 1.5 + Math.random() * 0.5;
+      const crinkBP = ctx.createBiquadFilter();
+      crinkBP.type = 'bandpass';
+      crinkBP.frequency.value = 7000 + Math.random() * 3000;
+      crinkBP.Q.value = 3;
+      const crinkGain = ctx.createGain();
+      crinkGain.gain.setValueAtTime(0.0, t + 0.01);
+      crinkGain.gain.linearRampToValueAtTime(0.12, t + 0.02);
+      crinkGain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      crinkle.connect(crinkBP);
+      crinkBP.connect(crinkGain);
+      crinkGain.connect(ctx.destination);
+      crinkle.start(t);
+      crinkle.stop(t + 0.12);
+
+    } else if (type === 'buzz') {
+      // Low muted thud for wrong answer
+      const noise = ctx.createBufferSource();
+      noise.buffer = getNoiseBuffer(ctx);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 350;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.25, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      noise.connect(lp); lp.connect(g); g.connect(ctx.destination);
+      noise.start(t); noise.stop(t + 0.2);
+
+    } else if (type === 'levelup') {
+      // Rapid bubble wrap popping sequence — like running your thumb across a strip
+      for (let i = 0; i < 7; i++) {
+        const d = i * 0.055;
+        const p = 0.85 + i * 0.08;
+        // Each mini-pop
+        const s = ctx.createBufferSource();
+        s.buffer = getNoiseBuffer(ctx);
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass'; hp.frequency.value = 3500 + i * 400;
+        const gn = ctx.createGain();
+        gn.gain.setValueAtTime(0.4, t+d);
+        gn.gain.linearRampToValueAtTime(0.0, t+d+0.015);
+        s.connect(hp); hp.connect(gn); gn.connect(ctx.destination);
+        s.start(t+d); s.stop(t+d+0.02);
+        // Puff
+        const pf = ctx.createBufferSource();
+        pf.buffer = getNoiseBuffer(ctx);
+        const pfLP = ctx.createBiquadFilter();
+        pfLP.type = 'lowpass'; pfLP.frequency.value = 1500 * p;
+        const pfG = ctx.createGain();
+        pfG.gain.setValueAtTime(0.25, t+d);
+        pfG.gain.exponentialRampToValueAtTime(0.001, t+d+0.06);
+        pf.connect(pfLP); pfLP.connect(pfG); pfG.connect(ctx.destination);
+        pf.start(t+d); pf.stop(t+d+0.07);
+      }
+      // Sparkly finish tone
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, t+0.4);
+      osc.frequency.exponentialRampToValueAtTime(1320, t+0.6);
+      const fg = ctx.createGain();
+      fg.gain.setValueAtTime(0.15, t+0.4);
+      fg.gain.exponentialRampToValueAtTime(0.001, t+0.7);
+      osc.connect(fg); fg.connect(ctx.destination);
+      osc.start(t+0.4); osc.stop(t+0.7);
+    }
+  } catch(e) {}
+}
+
+// ============================================================
+// BACKGROUND MUSIC — Candy Crush-style cheerful loop
+// ============================================================
+let bgMusicPlaying = false;
+let bgMusicNodes = [];
+let bgMusicInterval = null;
+let bgMusicGain = null;
+
+function startBgMusic() {
+  if (bgMusicPlaying) return;
+  if (!musicEnabled) return;
+  unlockAudio(); // ensure audio is ready
+
+  const ctx = getAudioCtx();
+  if (!ctx) return; // Audio unavailable
+  bgMusicPlaying = true;
+
+  bgMusicGain = ctx.createGain();
+  bgMusicGain.gain.value = 0.12; // soft background level
+  bgMusicGain.connect(ctx.destination);
+
+  // Sweet, bouncy melody in C major — loops every 8 bars
+  // Notes as frequencies: C4=262, D4=294, E4=330, F4=349, G4=392, A4=440, B4=494, C5=523
+  const C4=262, D4=294, E4=330, F4=349, G4=392, A4=440, B4=494, C5=523, E5=659, G5=784;
+
+  // Melody pattern (Candy Crush vibe: playful, major key, bouncy)
+  const melody = [
+    E4, G4, C5, G4, E4, G4, C5, 0,
+    D4, G4, B4, G4, D4, F4, A4, 0,
+    C4, E4, G4, C5, E5, C5, G4, 0,
+    F4, A4, C5, A4, G4, E4, D4, 0,
+    E4, C5, G4, E4, G4, C5, E5, 0,
+    D4, B4, G4, D4, F4, A4, C5, 0,
+    C4, G4, E5, G5, E5, C5, G4, 0,
+    G4, A4, B4, C5, 0, 0, 0, 0,
+  ];
+
+  // Bass pattern
+  const bass = [
+    C4/2, 0, C4/2, 0, C4/2, 0, C4/2, 0,
+    G4/2, 0, G4/2, 0, G4/2, 0, G4/2, 0,
+    C4/2, 0, E4/2, 0, G4/2, 0, C4/2, 0,
+    F4/2, 0, F4/2, 0, G4/2, 0, G4/2, 0,
+    C4/2, 0, C4/2, 0, C4/2, 0, C4/2, 0,
+    G4/2, 0, G4/2, 0, G4/2, 0, G4/2, 0,
+    C4/2, 0, E4/2, 0, G4/2, 0, E4/2, 0,
+    G4/2, 0, A4/2, 0, B4/2, 0, C4/2, 0,
+  ];
+
+  const bpm = 140;
+  const noteLen = 60 / bpm; // seconds per beat
+  const totalNotes = melody.length;
+  let noteIndex = 0;
+
+  // Schedule each note at an exact AudioContext timestamp instead of
+  // "whenever the timer happens to fire" — setInterval drifts and
+  // stutters when iOS throttles timers, the audio clock never does.
+  function playNoteAt(t) {
+    const ctx2 = getAudioCtx();
+
+    // Melody note
+    const freq = melody[noteIndex % totalNotes];
+    if (freq > 0) {
+      const osc = ctx2.createOscillator();
+      osc.type = 'triangle'; // soft, warm tone
+      osc.frequency.value = freq;
+      const g = ctx2.createGain();
+      g.gain.setValueAtTime(0.18, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + noteLen * 0.9);
+      osc.connect(g);
+      g.connect(bgMusicGain);
+      osc.start(t);
+      osc.stop(t + noteLen * 0.95);
+    }
+
+    // Bass note
+    const bassFreq = bass[noteIndex % totalNotes];
+    if (bassFreq > 0) {
+      const bassOsc = ctx2.createOscillator();
+      bassOsc.type = 'sine';
+      bassOsc.frequency.value = bassFreq;
+      const bg = ctx2.createGain();
+      bg.gain.setValueAtTime(0.15, t);
+      bg.gain.exponentialRampToValueAtTime(0.001, t + noteLen * 0.85);
+      bassOsc.connect(bg);
+      bg.connect(bgMusicGain);
+      bassOsc.start(t);
+      bassOsc.stop(t + noteLen * 0.9);
+    }
+
+    // Light percussion on every other beat
+    if (noteIndex % 2 === 0) {
+      const perc = ctx2.createBufferSource();
+      perc.buffer = getNoiseBuffer(ctx2);
+      const percHP = ctx2.createBiquadFilter();
+      percHP.type = 'highpass';
+      percHP.frequency.value = 8000;
+      const percG = ctx2.createGain();
+      percG.gain.setValueAtTime(0.04, t);
+      percG.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+      perc.connect(percHP);
+      percHP.connect(percG);
+      percG.connect(bgMusicGain);
+      perc.start(t);
+      perc.stop(t + 0.05);
+    }
+
+    noteIndex++;
+  }
+
+  // Lookahead scheduler: every 100ms, schedule all notes that fall
+  // within the next 0.35s on the audio clock.
+  let nextNoteTime = ctx.currentTime + 0.05;
+  function scheduleAhead() {
+    if (!bgMusicPlaying) return;
+    const ctx2 = getAudioCtx();
+    if (!ctx2) return;
+    while (nextNoteTime < ctx2.currentTime + 0.35) {
+      playNoteAt(nextNoteTime);
+      nextNoteTime += noteLen;
+    }
+  }
+
+  // Start the loop — clear any stale interval first to prevent duplicates
+  if (bgMusicInterval) clearInterval(bgMusicInterval);
+  bgMusicInterval = setInterval(scheduleAhead, 100);
+  scheduleAhead(); // schedule the first notes immediately
+}
+
+function stopBgMusic() {
+  bgMusicPlaying = false;
+  if (bgMusicInterval) {
+    clearInterval(bgMusicInterval);
+    bgMusicInterval = null;
+  }
+}
+
+function setBgMusicVolume(vol) {
+  if (bgMusicGain) bgMusicGain.gain.value = vol;
+}
+
+// ============================================================
+// LEVEL STARS & TIMING
+// ============================================================
+function getParTime(level) {
+  const config = getLevelConfig(level);
+  // Par time = target score * 0.8 seconds, scaled up with level
+  return Math.max(15, config.targetScore * 0.8) + (level - 1) * 3;
+}
+
+function getStarRating(elapsedSeconds, level) {
+  const parTime = getParTime(level);
+  if (elapsedSeconds <= parTime) return 3;
+  if (elapsedSeconds <= parTime * 1.5) return 2;
+  if (elapsedSeconds <= parTime * 2.5) return 1;
+  return 0;
+}
+
+function getBestStars(level) {
+  try {
+    const best = storeGet(`primepop_stars_level${level}`);
+    return best ? parseInt(best, 10) : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function saveLevelStars(level, stars) {
+  try {
+    const current = getBestStars(level);
+    if (stars > current) {
+      storeSet(`primepop_stars_level${level}`, String(stars));
+    }
+  } catch (e) {}
+}
+
+function replayLevel() {
+  hideOverlay('level-up-overlay');
+  state._levelCompleting = false;
+  state.paused = false;
+  state.score = 0;
+  state.selectedIds = [];
+  // Regenerate bubbles with same level config
+  const config = getLevelConfig(state.level);
+  _evenPool = [];
+  _oddPool = [];
+  clearBoard();
+
+  requestAnimationFrame(() => {
+    state.bubbles = generateBubbles(state.numBubbles, state.maxNumber, config.speed);
+    updateHeader();
+    state.levelStartTime = Date.now();
+    // Clear and restart hint timer
+    if (hintTimeout) clearTimeout(hintTimeout);
+    if (state.level <= 2) {
+      hintTimeout = setTimeout(() => {
+        if (!state.paused && state.selectedIds.length === 0 && state.bubbles.length > 1) {
+          showHint();
+        }
+      }, 4000);
+    }
+    stopGameLoop();
+    startGameLoop();
+  });
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+let musicEnabled = true;
+
+function toggleSetting(key) {
+  if (key === 'sfx') {
+    state.sfx = !state.sfx;
+    document.getElementById('toggle-sfx').classList.toggle('on', state.sfx);
+    storeSet('primepop_sfx', String(state.sfx));
+  } else if (key === 'music') {
+    musicEnabled = !musicEnabled;
+    document.getElementById('toggle-music').classList.toggle('on', musicEnabled);
+    storeSet('primepop_music', String(musicEnabled));
+    if (musicEnabled) {
+      startBgMusic();
+    } else {
+      stopBgMusic();
+    }
+  }
+}
+
+
+// ============================================================
+// SAVE SLOT SYSTEM — up to 3 games + all-time top score
+// ============================================================
+const MAX_SLOTS = 3;
+let activeSlotIndex = -1; // which slot is currently being played
+
+function getAllSlots() {
+  try {
+    const raw = storeGet('primepop_slots');
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveAllSlots(slots) {
+  try { storeSet('primepop_slots', JSON.stringify(slots)); } catch(e) {}
+}
+
+function getAllTimeScore() {
+  try { return parseInt(storeGet('primepop_alltime') || '0', 10); } catch(e) { return 0; }
+}
+
+function updateAllTimeScore(score) {
+  const current = getAllTimeScore();
+  if (score > current) {
+    try { storeSet('primepop_alltime', String(score)); } catch(e) {}
+  }
+}
+
+// Escape user-entered text before putting it into innerHTML
+// (a player name like "<img onerror=...>" must render as text, not run)
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+function renderSaveSlots() {
+  const container = document.getElementById('save-slots-container');
+  if (!container) return;
+  const slots = getAllSlots();
+
+  // Update all-time display
+  document.getElementById('all-time-display').textContent = `All-Time Best: ${getAllTimeScore()}`;
+
+  let html = '';
+  for (let i = 0; i < Math.max(slots.length, 0); i++) {
+    const s = slots[i];
+    const date = s.savedAt ? new Date(s.savedAt).toLocaleDateString() : '';
+    const livesCount = Math.max(0, Math.min(s.lives !== undefined ? s.lives : MAX_LIVES, MAX_LIVES));
+    const heartsDisplay = heartsHTML(livesCount, MAX_LIVES);
+    const safeName = escapeHtml(s.playerName || 'Game ' + (i+1));
+    html += `
+      <div class="save-slot" onclick="loadSlot(${i})">
+        <div class="save-slot-info">
+          <div class="save-slot-name">${safeName}</div>
+          <div class="save-slot-detail">Level ${Number(s.level) || 1} · Score ${Number(s.totalScore) || 0} · ${heartsDisplay} · ${date}</div>
+        </div>
+        <div class="save-slot-actions">
+          <button class="slot-btn slot-btn-play" onclick="event.stopPropagation(); loadSlot(${i})">Play</button>
+          <button class="slot-btn slot-btn-del" onclick="event.stopPropagation(); deleteSlot(${i})">Del</button>
+        </div>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+
+function newGameSlot() {
+  const slots = getAllSlots();
+  if (slots.length >= MAX_SLOTS) {
+    showToast('Max 3 games! Delete one first.');
+    return;
+  }
+  const name = document.getElementById('player-name-input')?.value || 'Game ' + (slots.length + 1);
+  // Note: NO "purchased" field — the purchase is global, not per slot
+  const newSlot = {
+    playerName: name, level: 1, totalScore: 0,
+    sfx: true, lives: MAX_LIVES,
+    savedAt: new Date().toISOString(),
+  };
+  slots.push(newSlot);
+  saveAllSlots(slots);
+  activeSlotIndex = slots.length - 1;
+  state.currentSlot = activeSlotIndex;
+  applySlotToState(newSlot);
+  startGame();
+}
+
+function loadSlot(idx) {
+  const slots = getAllSlots();
+  if (!slots[idx]) return;
+  activeSlotIndex = idx;
+  state.currentSlot = idx;
+  applySlotToState(slots[idx]);
+
+  // Safety: if a save has 0 or negative/invalid lives, reset to full lives
+  if (!state.lives || state.lives <= 0 || isNaN(state.lives)) {
+    state.lives = MAX_LIVES;
+    saveProgress();
+  }
+
+  startGame();
+}
+
+function deleteSlot(idx) {
+  showConfirm(
+    'Delete this game?',
+    'This saved game will be gone forever. This cannot be undone.',
+    'Delete',
+    () => {
+      const slots = getAllSlots();
+      slots.splice(idx, 1);
+      saveAllSlots(slots);
+      if (activeSlotIndex === idx) activeSlotIndex = -1;
+      else if (activeSlotIndex > idx) activeSlotIndex--;
+      renderSaveSlots();
+      showToast('Game deleted');
+    }
+  );
+}
+
+function applySlotToState(data) {
+  if (!data || typeof data !== 'object') data = {};
+
+  // One-time migration: old saves stored "purchased" inside the slot.
+  // If any old slot says purchased, promote it to the global flag.
+  if (data.purchased && !isPurchasedGlobal()) {
+    setPurchasedGlobal(true);
+  }
+
+  state.level = (typeof data.level === 'number' && data.level >= 1) ? Math.floor(data.level) : 1;
+  state.totalScore = (typeof data.totalScore === 'number' && data.totalScore >= 0) ? Math.floor(data.totalScore) : 0;
+  // Purchase status ALWAYS comes from the global flag, never the slot
+  state.purchased = isPurchasedGlobal();
+  state.playerName = (typeof data.playerName === 'string' && data.playerName.length > 0) ? data.playerName : 'Guest';
+  state.sfx = data.sfx !== undefined ? !!data.sfx : true;
+  state.lives = (typeof data.lives === 'number' && data.lives >= 1) ? Math.min(Math.floor(data.lives), MAX_LIVES) : MAX_LIVES;
+  const nameInput = document.getElementById('player-name-input');
+  if (nameInput) nameInput.value = state.playerName;
+  const sfxToggle = document.getElementById('toggle-sfx');
+  if (sfxToggle) sfxToggle.classList.toggle('on', state.sfx);
+}
+
+function saveProgress() {
+  if (activeSlotIndex < 0) return;
+  const slots = getAllSlots();
+  const name = document.getElementById('player-name-input')?.value || state.playerName || 'Guest';
+  state.playerName = name;
+
+  // Note: NO "purchased" field — the purchase is global, not per slot
+  slots[activeSlotIndex] = {
+    playerName: state.playerName,
+    level: state.level,
+    totalScore: state.totalScore,
+    sfx: state.sfx,
+    lives: state.lives,
+    savedAt: new Date().toISOString(),
+  };
+  saveAllSlots(slots);
+  updateAllTimeScore(state.totalScore);
+}
+
+function resetProgress() {
+  showConfirm(
+    'Reset all progress?',
+    'All saved games, scores, and stars will be erased. Your ad-free purchase is kept. This cannot be undone.',
+    'Reset Everything',
+    () => {
+      try {
+        storeRemove('primepop_slots');
+        storeRemove('primepop_alltime');
+        storeRemove('primepop_hideTutorial');
+        // Remove per-level star records
+        const starKeys = [];
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('primepop_stars_')) starKeys.push(k);
+          }
+        } catch(e) {}
+        starKeys.forEach(k => storeRemove(k));
+      } catch(e) {}
+      activeSlotIndex = -1;
+      state.level = 1; state.score = 0; state.totalScore = 0;
+      state.playerName = 'Guest'; state.lives = MAX_LIVES;
+      // Deliberately NOT clearing state.purchased — a paid unlock is
+      // a store entitlement, not game progress.
+      if (document.getElementById('player-name-input')) {
+        document.getElementById('player-name-input').value = '';
+      }
+      renderSaveSlots();
+      showToast('All progress reset');
+    }
+  );
+}
+
+// ============================================================
+// RATE THE APP
+// A gentle, once-only prompt after the player is clearly enjoying the
+// game (a few levels in). "Rate" opens the store's review page.
+// Uses no extra native plugin, so the build stays identical to what
+// Apple already approved.
+// ============================================================
+const APPLE_APP_ID = '6761229283';
+
+function shouldAskForRating() {
+  try {
+    if (storeGet('primepop_rated') === 'true') return false;      // already rated
+    if (storeGet('primepop_rate_declined') === 'true') return false; // said "maybe later" twice
+    const wins = parseInt(storeGet('primepop_levelwins') || '0', 10);
+    return wins >= 3; // ask once they've finished a few levels
+  } catch (e) { return false; }
+}
+
+function maybeShowRatePrompt() {
+  if (!shouldAskForRating()) return;
+  // Show a moment after the level-complete celebration settles
+  setTimeout(() => {
+    if (document.getElementById('level-up-overlay').classList.contains('active')) return; // don't stack
+    showOverlay('rate-overlay');
+  }, 900);
+}
+
+function rateNow() {
+  hideOverlay('rate-overlay');
+  storeSet('primepop_rated', 'true');
+  const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();
+  const platform = isNative ? Capacitor.getPlatform() : 'web';
+  let url;
+  if (platform === 'ios') {
+    url = `https://apps.apple.com/app/id${APPLE_APP_ID}?action=write-review`;
+  } else if (platform === 'android') {
+    url = 'market://details?id=com.primepop.app';
+  } else {
+    url = `https://apps.apple.com/app/id${APPLE_APP_ID}`;
+  }
+  try { window.open(url, '_system'); } catch (e) {
+    try { window.open(url, '_blank'); } catch (e2) {}
+  }
+}
+
+function dismissRate() {
+  hideOverlay('rate-overlay');
+  // Second dismissal → stop asking for good.
+  const declines = parseInt(storeGet('primepop_rate_declines') || '0', 10) + 1;
+  storeSet('primepop_rate_declines', String(declines));
+  if (declines >= 2) storeSet('primepop_rate_declined', 'true');
+}
+
+// ============================================================
+// IN-APP PURCHASE SYSTEM (cordova-plugin-purchase / CdvPurchase)
+// Talks directly to Apple StoreKit & Google Play Billing
+// No third-party service (like RevenueCat) required
+// ============================================================
+// Product IDs — must match App Store Connect & Google Play Console
+const IAP_PRODUCT_ID     = 'com.primepop.app.adfree';       // $2.99 non-consumable
+const IAP_LIVES_FREE_ID  = 'com.primepop.app.lives5';       // $1.99 consumable (free users)
+const IAP_LIVES_PAID_ID  = 'com.primepop.app.lives5discount'; // $0.99 consumable (paid users)
+let iapReady = false;
+let iapStore = null;
+
+// Localized price strings, filled in from the store once products
+// load. The USD values are only fallbacks for browser testing —
+// real devices show the buyer's own currency (€, ₹, £, ...).
+let localizedPrices = {
+  adfree: '$2.99',
+  livesFree: '$1.99',
+  livesPaid: '$0.99',
+};
+
+function updateStorePrices() {
+  if (!iapStore) return;
+  try {
+    const adfree = iapStore.get(IAP_PRODUCT_ID);
+    if (adfree && adfree.pricing && adfree.pricing.price) {
+      localizedPrices.adfree = adfree.pricing.price;
+    }
+    const livesFree = iapStore.get(IAP_LIVES_FREE_ID);
+    if (livesFree && livesFree.pricing && livesFree.pricing.price) {
+      localizedPrices.livesFree = livesFree.pricing.price;
+    }
+    const livesPaid = iapStore.get(IAP_LIVES_PAID_ID);
+    if (livesPaid && livesPaid.pricing && livesPaid.pricing.price) {
+      localizedPrices.livesPaid = livesPaid.pricing.price;
+    }
+  } catch (e) {}
+  updatePurchaseUI();
+}
+
+async function initIAP() {
+  try {
+    // Only initialize on native platforms
+    if (typeof Capacitor === 'undefined' || !Capacitor.isNativePlatform()) {
+      console.log('[IAP] Not on native platform — using simulated purchases');
+      return;
+    }
+
+    // Wait for CdvPurchase to be available (cordova-plugin-purchase)
+    if (typeof CdvPurchase === 'undefined') {
+      console.log('[IAP] CdvPurchase not available');
+      return;
+    }
+
+    iapStore = CdvPurchase.store;
+    const { Platform, ProductType } = CdvPurchase;
+
+    // Determine which platform we're on
+    const platform = Capacitor.getPlatform() === 'ios'
+      ? Platform.APPLE_APPSTORE
+      : Platform.GOOGLE_PLAY;
+
+    // Register all products
+    iapStore.register([
+      { id: IAP_PRODUCT_ID,    type: ProductType.NON_CONSUMABLE, platform: platform }, // $2.99 ad-free
+      { id: IAP_LIVES_FREE_ID, type: ProductType.CONSUMABLE,     platform: platform }, // $1.99 x5 lives
+      { id: IAP_LIVES_PAID_ID, type: ProductType.CONSUMABLE,     platform: platform }, // $0.99 x5 lives (discount)
+    ]);
+
+    // Listen for purchase updates
+    iapStore.when()
+      .productUpdated((product) => {
+        console.log('[IAP] Product updated:', product.id, product.owned);
+        updateStorePrices(); // refresh localized price strings
+        if (product.id === IAP_PRODUCT_ID && product.owned) {
+          onPurchaseGranted();
+        }
+      })
+      .approved((transaction) => {
+        console.log('[IAP] Transaction approved:', transaction.products.map(p => p.id));
+        // Guard against duplicate callbacks for the same transaction
+        if (transaction._primepopHandled) { transaction.finish(); return; }
+        transaction._primepopHandled = true;
+
+        const productIds = transaction.products.map(p => p.id);
+
+        // Handle ad-free unlock purchase
+        if (productIds.includes(IAP_PRODUCT_ID)) {
+          onPurchaseGranted();
+          showToast('🎉 Full game unlocked! Ads removed!');
+          afterAdFreePurchase();
+        }
+
+        // Deliver consumable lives
+        if (productIds.includes(IAP_LIVES_FREE_ID) || productIds.includes(IAP_LIVES_PAID_ID)) {
+          onLivesGranted();
+        }
+        transaction.finish();
+      })
+      .finished((transaction) => {
+        console.log('[IAP] Transaction finished:', transaction.transactionId);
+      })
+      .verified((receipt) => {
+        console.log('[IAP] Receipt verified');
+        receipt.finish();
+      });
+
+    // Initialize the store — this contacts Apple/Google servers
+    await iapStore.initialize([platform]);
+    iapReady = true;
+    console.log('[IAP] Store initialized successfully');
+
+    // Pull localized prices for the UI
+    updateStorePrices();
+
+    // Check if already purchased (handles reinstalls / new devices)
+    checkExistingPurchase();
+
+  } catch (e) {
+    console.log('[IAP] Init failed:', e.message);
+  }
+}
+
+function checkExistingPurchase() {
+  if (!iapStore) return;
+  const product = iapStore.get(IAP_PRODUCT_ID);
+  if (product && product.owned) {
+    console.log('[IAP] Product already owned — granting');
+    onPurchaseGranted();
+  }
+}
+
+function onPurchaseGranted() {
+  // Grant the ad-free unlock GLOBALLY — it applies to every save
+  // slot, every new game, and survives quitting to the menu.
+  state.purchased = true;
+  setPurchasedGlobal(true);
+  saveProgress();
+  updatePurchaseUI();
+  // Take down any ads that are currently up
+  try { hideGameplayBanner(); } catch (e) {}
+  console.log('[IAP] Ad-free unlock granted!');
+}
+
+function afterAdFreePurchase() {
+  // Handle navigation after a successful ad-free purchase
+  // Could be triggered from: purchase wall screen, between-rounds upsell, or settings
+  if (document.getElementById('purchase-screen').classList.contains('active')) {
+    // On the purchase wall — advance to next level
+    state.level++;
+    showScreen('game-screen');
+    initLevel();
+  } else if (document.getElementById('next-round-overlay').classList.contains('active')) {
+    // On the between-rounds screen — hide the upsell button
+    const upsellBtn = document.getElementById('nextround-upsell-btn');
+    if (upsellBtn) upsellBtn.style.display = 'none';
+  }
+  // If on settings screen, updatePurchaseUI() already handled it
+}
+
+function purchaseScreenBack() {
+  // Save progress before leaving purchase screen so player doesn't lose their game
+  saveProgress();
+  showScreen('title-screen');
+}
+
+function updatePurchaseUI() {
+  // Update settings screen
+  const settingsLabel = document.getElementById('settings-purchase-label');
+  const settingsBtn = document.getElementById('settings-purchase-btn');
+  if (state.purchased) {
+    if (settingsLabel) settingsLabel.textContent = 'Ad-Free: Active ✓';
+    if (settingsBtn) {
+      settingsBtn.textContent = 'Owned';
+      settingsBtn.disabled = true;
+      settingsBtn.style.opacity = '0.5';
+    }
+  } else {
+    if (settingsLabel) settingsLabel.textContent = 'Ad-Free Unlock';
+    if (settingsBtn) {
+      settingsBtn.textContent = localizedPrices.adfree;
+      settingsBtn.disabled = false;
+      settingsBtn.style.opacity = '1';
+    }
+  }
+
+  // Update purchase screen (localized price)
+  const priceDisplay = document.getElementById('purchase-price-display');
+  if (priceDisplay) priceDisplay.textContent = localizedPrices.adfree;
+  const purchaseBtn = document.getElementById('purchase-btn');
+  if (purchaseBtn && !purchaseBtn.disabled) {
+    purchaseBtn.textContent = `Unlock Now — ${localizedPrices.adfree}`;
+  }
+}
+
+async function handlePurchase() {
+  // Already purchased? Just continue the game
+  if (state.purchased) {
+    showToast('Already unlocked!');
+    return;
+  }
+
+  // Native platform: use real IAP
+  if (iapReady && iapStore) {
+    const purchaseBtn = document.getElementById('purchase-btn');
+    const purchaseStatus = document.getElementById('purchase-status');
+
+    // Show loading state
+    if (purchaseBtn) {
+      purchaseBtn.textContent = 'Processing...';
+      purchaseBtn.disabled = true;
+    }
+    if (purchaseStatus) {
+      purchaseStatus.style.display = 'block';
+      purchaseStatus.textContent = 'Contacting store...';
+    }
+
+    try {
+      const product = iapStore.get(IAP_PRODUCT_ID);
+      if (!product) {
+        throw new Error('Product not found in store');
+      }
+
+      // Get the first available offer and trigger the purchase
+      const offer = product.getOffer();
+      if (!offer) {
+        throw new Error('No offer available');
+      }
+
+      await iapStore.order(offer);
+      // The purchase flow is handled by the .approved/.finished listeners above
+      // onPurchaseGranted() will be called when the transaction completes
+      // Toast and navigation are triggered from the .approved listener, not here
+
+    } catch (e) {
+      console.log('[IAP] Purchase failed:', e.message);
+      showToast('Purchase cancelled or failed. Try again!');
+    } finally {
+      // Reset button state
+      if (purchaseBtn) {
+        purchaseBtn.disabled = false;
+        purchaseBtn.textContent = `Unlock Now — ${localizedPrices.adfree}`;
+      }
+      if (purchaseStatus) {
+        purchaseStatus.style.display = 'none';
+      }
+    }
+    return;
+  }
+
+  // Browser fallback: simulated purchase for testing
+  if (confirm(`SIMULATED PURCHASE (browser testing only)\n\nBuy PrimePop Ad-Free for ${localizedPrices.adfree}?`)) {
+    onPurchaseGranted();
+    showToast('🎉 Full game unlocked! Ads removed!');
+    afterAdFreePurchase();
+  }
+}
+
+async function restorePurchases() {
+  showToast('Checking for previous purchases...');
+
+  // Native platform: ask the store to restore
+  if (iapReady && iapStore) {
+    try {
+      await iapStore.restorePurchases();
+      // Check if the product is now owned
+      const product = iapStore.get(IAP_PRODUCT_ID);
+      if (product && product.owned) {
+        onPurchaseGranted();
+        showToast('🎉 Purchase restored! Ad-free unlocked!');
+      } else {
+        showToast('No previous purchase found for this account.');
+      }
+    } catch (e) {
+      console.log('[IAP] Restore failed:', e.message);
+      showToast('Could not restore. Check your internet connection.');
+    }
+    return;
+  }
+
+  // Browser fallback
+  if (state.purchased) {
+    showToast('Already unlocked!');
+  } else {
+    showToast('No previous purchase found. (Browser mode)');
+  }
+}
+
+// Initialize IAP when game loads (after a short delay so the page is ready)
+setTimeout(initIAP, 1500);
+
+// ============================================================
+// PRIVACY POLICY
+// ============================================================
+function openPrivacyPolicy() {
+  showOverlay('privacy-overlay');
+}
+
+function replayTutorialFromSettings() {
+  // Reset tutorial state and show it from the settings screen
+  hasSeenTutorial = false;
+  storeRemove('primepop_hideTutorial');
+  showScreen('game-screen');
+  showTutorial();
+  state._pendingLevelStart = true;
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = `
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85); color: #fff; padding: 12px 24px;
+      border-radius: 30px; font-size: 0.9rem; z-index: 500;
+      transition: opacity 0.3s; pointer-events: none;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg; toast.style.opacity = 1;
+  // Cancel any previous fade-out timer so rapid toasts stay visible
+  if (toast._fadeTimer) clearTimeout(toast._fadeTimer);
+  toast._fadeTimer = setTimeout(() => { toast.style.opacity = 0; }, 2000);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+// Apply the saved theme immediately (before first paint) so there's
+// no flash of the wrong background.
+applyTheme(storeGet('primepop_theme') || 'lagoon');
+
+window.addEventListener('load', async () => {
+  // If iOS evicted the WebView's localStorage, restore game data
+  // from native storage before reading anything.
+  try { await restoreFromNativeStorage(); } catch (e) {}
+
+  // Re-apply theme + purchase flag in case native storage restored them
+  applyTheme(storeGet('primepop_theme') || 'lagoon');
+  state.purchased = isPurchasedGlobal();
+
+  // One-time migration: promote "purchased" from any old save slot
+  // to the global flag (older versions stored it per slot).
+  try {
+    if (!state.purchased) {
+      const oldSlots = getAllSlots();
+      if (oldSlots.some(s => s && s.purchased)) {
+        setPurchasedGlobal(true);
+        state.purchased = true;
+      }
+    }
+  } catch (e) {}
+
+  // Load settings from storage
+  try {
+    if (storeGet('primepop_music') === 'false') {
+      musicEnabled = false;
+      document.getElementById('toggle-music').classList.remove('on');
+    }
+    if (storeGet('primepop_sfx') === 'false') {
+      state.sfx = false;
+      document.getElementById('toggle-sfx').classList.remove('on');
+    }
+  } catch (e) {}
+
+  // Unlock audio on any user interaction (iOS requires this)
+  ['touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, unlockAudio, { once: false, passive: true });
+  });
+
+  // Close primes dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('primes-dropdown');
+    if (dropdown && dropdown.style.display === 'block') {
+      if (!dropdown.contains(e.target) && !e.target.closest('.prime-header-btn')) {
+        dropdown.style.display = 'none';
+        state.paused = false;
+      }
+    }
+  });
+
+  renderSaveSlots();
+  const slots = getAllSlots();
+  if (slots.length > 0) {
+    document.getElementById('login-status').textContent = `${slots.length} saved game${slots.length > 1 ? 's' : ''} found`;
+  }
+});
+</script>
+</body>
+</html>
